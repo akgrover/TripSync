@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: #ffffff;
+  --color-foreground: #0f172a;
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
+
+::selection {
+  background-color: #99f6e4;
+  color: #0f172a;
+}
+
+/* Slim, unobtrusive scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Soft radial glow used behind hero / CTA sections */
+.bg-glow {
+  background-image: radial-gradient(
+      60% 50% at 85% 0%,
+      rgba(20, 184, 166, 0.12) 0%,
+      rgba(20, 184, 166, 0) 60%
+    ),
+    radial-gradient(
+      50% 40% at 10% 10%,
+      rgba(13, 148, 136, 0.08) 0%,
+      rgba(13, 148, 136, 0) 60%
+    );
+}
+
+/* Masonry columns for the photo grid demo */
+.masonry {
+  column-count: 2;
+  column-gap: 0.75rem;
+}
+@media (min-width: 768px) {
+  .masonry {
+    column-count: 3;
+  }
+}
+@media (min-width: 1024px) {
+  .masonry {
+    column-count: 4;
+  }
+}
+.masonry > * {
+  break-inside: avoid;
+  margin-bottom: 0.75rem;
+}
