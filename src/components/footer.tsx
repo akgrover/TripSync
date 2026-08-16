@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Sparkles } from "lucide-react";
 import { Logo } from "./logo";
 
@@ -11,12 +12,12 @@ export function Footer() {
           <Logo />
 
           <div className="flex items-center gap-6 text-sm text-slate-500">
-            <a href="#" className="transition hover:text-slate-900">
+            <Link href="/privacy-policy" className="transition hover:text-slate-900">
               Privacy Policy
-            </a>
-            <a href="#" className="transition hover:text-slate-900">
+            </Link>
+            <Link href="/terms-of-service" className="transition hover:text-slate-900">
               Terms
-            </a>
+            </Link>
           </div>
 
           <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-200 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-700">
