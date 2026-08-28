@@ -18,6 +18,9 @@ export function Footer() {
             <Link href="/terms-of-service" className="transition hover:text-slate-900">
               Terms
             </Link>
+            <Link href="/community-guidelines" className="transition hover:text-slate-900">
+              Community Guidelines
+            </Link>
           </div>
 
           <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-200 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-700">
