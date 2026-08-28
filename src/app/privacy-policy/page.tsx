@@ -9,13 +9,17 @@ export const metadata: Metadata = {
 export default function PrivacyPolicyPage() {
   return (
     <LegalPage title="TripSync Privacy Policy" draft>
-      <p className="text-sm text-slate-400">Last updated: [DATE]</p>
+      <p className="text-sm text-slate-400">Last updated: August 27, 2026</p>
 
       <p>
-        <strong>[COMPANY LEGAL NAME]</strong> (&quot;TripSync&quot;,
-        &quot;we&quot;, &quot;us&quot;) operates the TripSync mobile app.
-        This policy explains what we collect, why, and your choices — with
-        special attention to <strong>face data</strong>, which is sensitive.
+        TripSync (&quot;we&quot;, &quot;us&quot;) is built and operated by
+        Akshit Grover and Saurav Bhagat, working as independent developers
+        — TripSync is not offered by a company or other registered legal
+        entity. TripSync is currently
+        offered only to users located in <strong>India</strong>. This policy
+        explains what we collect, why, and your choices — with special
+        attention to <strong>face data</strong>, which is sensitive personal
+        data under Indian law.
       </p>
 
       <section>
@@ -89,8 +93,14 @@ export default function PrivacyPolicyPage() {
             which point it is deleted from Amazon Rekognition.
           </li>
           <li>
-            [Add any jurisdiction-specific biometric disclosures — e.g.,
-            US-Illinois BIPA retention schedule.]
+            Under India&apos;s Information Technology (Reasonable Security
+            Practices and Procedures and Sensitive Personal Data or
+            Information) Rules, 2011, biometric information (including your
+            face template) is <strong>Sensitive Personal Data or
+            Information (SPDI)</strong>. We collect and process it only
+            with your explicit, opt-in consent, we don&apos;t use it for
+            any purpose beyond matching you to your trip photos, and you can
+            withdraw consent at any time by deleting your Face profile.
           </li>
         </ul>
       </section>
@@ -108,10 +118,22 @@ export default function PrivacyPolicyPage() {
             group&apos;s photos and are untagged there.
           </li>
           <li>
-            <strong>Access / correction / other rights:</strong> [describe
-            how users exercise GDPR/CCPA rights and your response time]. To
-            request data deletion outside the app, contact [PRIVACY EMAIL]
-            or see [ACCOUNT DELETION URL].
+            <strong>Access, correction &amp; erasure:</strong> under India&apos;s
+            Digital Personal Data Protection Act, 2023 (DPDPA), you can ask
+            us to confirm what personal data we hold about you, correct or
+            complete it, or erase it (including withdrawing consent to your
+            Face profile at any time, without affecting the lawfulness of
+            processing before withdrawal). You can also register a
+            grievance about how we&apos;ve handled your data. To do any of
+            this, contact{" "}
+            <a
+              href="mailto:the.creative.act108@gmail.com"
+              className="font-semibold text-teal-700 underline underline-offset-2 hover:text-teal-800"
+            >
+              the.creative.act108@gmail.com
+            </a>
+            ; we aim to acknowledge requests within 24 hours and resolve
+            them within 15 days.
           </li>
         </ul>
       </section>
@@ -119,9 +141,14 @@ export default function PrivacyPolicyPage() {
       <section>
         <h2>6. Data retention</h2>
         <p>
-          We keep data while your account is active and delete it on account
-          deletion, except where we must retain limited records for
-          legal/security reasons. [Specify durations.]
+          When you delete your account, we delete your personal data —
+          your account info, face template, and reference selfie —
+          immediately. Photos you shared to a trip group are different:
+          they belong to that group because you chose to share them there,
+          so they remain in the group after you leave or delete your
+          account. They&apos;re just no longer tied to your identity — you
+          stop being tagged or matched to them, and members of that group
+          only, same as before.
         </p>
       </section>
 
@@ -135,19 +162,28 @@ export default function PrivacyPolicyPage() {
       </section>
 
       <section>
-        <h2>8. International transfers</h2>
+        <h2>8. Where your data is processed</h2>
         <p>
-          Data may be processed in [REGION, e.g., the United States] by AWS
-          and other providers. [Add transfer-mechanism language if serving
-          EU/UK users.]
+          TripSync is offered only to users in India, and we do not offer
+          the app in the EU, UK, US, or other regions. That said, some of
+          our service providers — for example, Amazon Web Services — may
+          process or store data outside India as part of running their
+          infrastructure. Where that happens, we still require our service
+          providers to protect it consistent with this policy.
         </p>
       </section>
 
       <section>
         <h2>9. Children</h2>
         <p>
-          TripSync is not directed to children under [13/16]. We do not
-          knowingly collect their data.
+          TripSync is intended for users who are <strong>18 or older</strong>.
+          Under the DPDPA, anyone under 18 is a &quot;child,&quot; and
+          processing a child&apos;s personal data — including creating a
+          Face profile — requires verifiable consent from a parent or
+          lawful guardian. TripSync does not currently support that consent
+          flow, so the app is not directed to, and may not knowingly be
+          used by, anyone under 18. If we learn an account belongs to
+          someone under 18, we will delete the account and associated data.
         </p>
       </section>
 
@@ -161,7 +197,39 @@ export default function PrivacyPolicyPage() {
 
       <section>
         <h2>11. Contact</h2>
-        <p>[COMPANY LEGAL NAME], [ADDRESS] — [PRIVACY EMAIL].</p>
+        <p>
+          TripSync is built and run by two independent developers, not a
+          registered company, so there&apos;s no company name or office
+          address to list here. For anything about this policy, your data,
+          or how a report or complaint was handled, write to{" "}
+          <a
+            href="mailto:the.creative.act108@gmail.com"
+            className="font-semibold text-teal-700 underline underline-offset-2 hover:text-teal-800"
+          >
+            the.creative.act108@gmail.com
+          </a>
+          , or reach us directly:
+        </p>
+        <ul>
+          <li>
+            Akshit Grover —{" "}
+            <a
+              href="mailto:akgrover.contact@gmail.com"
+              className="font-semibold text-teal-700 underline underline-offset-2 hover:text-teal-800"
+            >
+              akgrover.contact@gmail.com
+            </a>
+          </li>
+          <li>
+            Saurav Bhagat —{" "}
+            <a
+              href="mailto:sauravbhagat088@gmail.com"
+              className="font-semibold text-teal-700 underline underline-offset-2 hover:text-teal-800"
+            >
+              sauravbhagat088@gmail.com
+            </a>
+          </li>
+        </ul>
       </section>
     </LegalPage>
   );

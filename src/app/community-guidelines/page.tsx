@@ -10,13 +10,17 @@ export const metadata: Metadata = {
 export default function CommunityGuidelinesPage() {
   return (
     <LegalPage title="TripSync Community Guidelines" draft>
-      <p className="text-sm text-slate-400">Last updated: [DATE]</p>
+      <p className="text-sm text-slate-400">Last updated: August 27, 2026</p>
 
       <p>
-        TripSync trip groups are invite-only, but the people in them are
-        real, and so are the photos of them. These Guidelines explain what we
-        expect from everyone using TripSync, what counts as a violation, and
-        what happens when something goes wrong. They work alongside our{" "}
+        TripSync is built and operated by Akshit Grover and Saurav Bhagat,
+        working as independent developers, and is currently available only
+        to users in{" "}
+        <strong>India</strong>. Trip groups are invite-only, but the people
+        in them are real, and so are the photos of them. These Guidelines
+        explain what we expect from everyone using TripSync, what counts as
+        a violation, and what happens when something goes wrong. They work
+        alongside our{" "}
         <a
           href="/terms-of-service"
           className="font-semibold text-teal-700 underline underline-offset-2 hover:text-teal-800"
@@ -61,6 +65,13 @@ export default function CommunityGuidelinesPage() {
       <section>
         <h2>2. Zero-tolerance policy</h2>
         <p>
+          We don&apos;t review photos before they&apos;re posted, and{" "}
+          <strong>
+            you are solely responsible for the content you upload and share
+          </strong>{" "}
+          — including making sure it doesn&apos;t attack or demean anyone
+          on the basis of race, caste, religion, gender, sexual
+          orientation, disability, or any other protected characteristic.
           TripSync has <strong>zero tolerance</strong> for the following,
           with no exceptions other than the review and appeals process
           described in Sections 4–5 of these Guidelines:
@@ -69,7 +80,7 @@ export default function CommunityGuidelinesPage() {
           <li>Sexual, exploitative, or abusive content involving anyone, especially minors.</li>
           <li>Non-consensual photos or videos, including images taken or shared without the subject&apos;s knowledge or agreement.</li>
           <li>Harassment, bullying, threats, stalking, or doxxing (sharing someone&apos;s private info without consent).</li>
-          <li>Hate speech or content that attacks people based on identity, such as race, religion, gender, sexual orientation, or disability.</li>
+          <li>Hate speech or content that attacks people based on identity, such as race, caste, religion, gender, sexual orientation, or disability.</li>
           <li>Illegal content or activity of any kind.</li>
           <li>Impersonation, or uploading someone&apos;s likeness to deceive or defame them.</li>
           <li>Misuse of face data — using TripSync&apos;s matching to identify or track someone outside the context of a shared trip.</li>
@@ -183,15 +194,17 @@ export default function CommunityGuidelinesPage() {
         <h2>6. Who to contact</h2>
         <ul>
           <li>
-            <strong>Trust &amp; Safety (reports, appeals, urgent issues):</strong>{" "}
-            [TRUST &amp; SAFETY EMAIL]
-          </li>
-          <li>
-            <strong>General support:</strong> [SUPPORT EMAIL]
-          </li>
-          <li>
-            <strong>Privacy or data requests:</strong> [PRIVACY EMAIL] — see
-            the{" "}
+            <strong>
+              Reports, appeals, urgent issues, general support, and privacy
+              or data requests:
+            </strong>{" "}
+            <a
+              href="mailto:the.creative.act108@gmail.com"
+              className="font-semibold text-teal-700 underline underline-offset-2 hover:text-teal-800"
+            >
+              the.creative.act108@gmail.com
+            </a>{" "}
+            — see also the{" "}
             <a
               href="/privacy-policy"
               className="font-semibold text-teal-700 underline underline-offset-2 hover:text-teal-800"
@@ -200,7 +213,26 @@ export default function CommunityGuidelinesPage() {
             </a>
             .
           </li>
-          <li>[COMPANY LEGAL NAME], [COMPANY ADDRESS].</li>
+          <li>
+            <strong>Direct contacts:</strong> TripSync is built and run by
+            two independent developers, not a registered company, so
+            there&apos;s no company address to list — but you can reach us
+            directly: Akshit Grover (
+            <a
+              href="mailto:akgrover.contact@gmail.com"
+              className="font-semibold text-teal-700 underline underline-offset-2 hover:text-teal-800"
+            >
+              akgrover.contact@gmail.com
+            </a>
+            ) or Saurav Bhagat (
+            <a
+              href="mailto:sauravbhagat088@gmail.com"
+              className="font-semibold text-teal-700 underline underline-offset-2 hover:text-teal-800"
+            >
+              sauravbhagat088@gmail.com
+            </a>
+            ).
+          </li>
         </ul>
       </section>
 

@@ -24,9 +24,9 @@ export function LegalPage({
           <div className="mt-6 flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
             <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" />
             <p>
-              <strong>Draft.</strong> This document is a starting template and
-              has not been reviewed by legal counsel. Bracketed placeholders
-              still need to be filled in before this is treated as final.
+              <strong>Draft.</strong> This document has not been reviewed
+              by legal counsel — treat it as a strong starting point, not a
+              final version.
             </p>
           </div>
         )}
