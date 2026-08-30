@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function CommunityGuidelinesPage() {
   return (
-    <LegalPage title="TripSync Community Guidelines" draft>
+    <LegalPage title="TripSync Community Guidelines">
       <p className="text-sm text-slate-400">Last updated: August 27, 2026</p>
 
       <p>

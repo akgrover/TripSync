@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPolicyPage() {
   return (
-    <LegalPage title="TripSync Privacy Policy" draft>
+    <LegalPage title="TripSync Privacy Policy">
       <p className="text-sm text-slate-400">Last updated: August 27, 2026</p>
 
       <p>

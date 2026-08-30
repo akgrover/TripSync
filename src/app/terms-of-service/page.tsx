@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function TermsOfServicePage() {
   return (
-    <LegalPage title="TripSync Terms of Service / EULA" draft>
+    <LegalPage title="TripSync Terms of Service / EULA">
       <p className="text-sm text-slate-400">Last updated: August 27, 2026</p>
 
       <p>
