@@ -63,18 +63,29 @@ export default function TermsOfServicePage() {
       </section>
 
       <section>
-        <h2>4. Acceptable use — no objectionable content</h2>
+        <h2>4. User Content and Conduct</h2>
         <p>
-          You agree <strong>not</strong> to upload content that is illegal,
-          non-consensual, sexual/abusive, harassing, or that violates
-          others&apos; privacy or IP. You will not misuse others&apos;
-          images or biometric data, and you will not upload content that
-          attacks or demeans anyone on the basis of race, caste, religion,
-          gender, sexual orientation, disability, or any other protected
-          characteristic.
+          You are <strong>solely responsible</strong> for the photos and
+          content you upload. TripSync has <strong>zero tolerance</strong>{" "}
+          for objectionable content or abusive behaviour. You may not
+          upload content that is sexually explicit, violent, graphic,
+          hateful, harassing, illegal, or that infringes others&apos;
+          rights, and you may not use TripSync to harass or abuse other
+          users. We use automated screening and user reports to detect
+          violations. We may remove content and suspend or terminate
+          accounts that violate these Terms, <strong>without notice</strong>.
+          Reports are reviewed within <strong>24 hours</strong>.
         </p>
         <p>
-          <strong>You are solely responsible for what you upload.</strong>{" "}
+          You also agree <strong>not</strong> to upload content that is
+          illegal, non-consensual, sexual/abusive, harassing, or that
+          violates others&apos; privacy or IP. You will not misuse
+          others&apos; images or biometric data, and you will not upload
+          content that attacks or demeans anyone on the basis of race,
+          caste, religion, gender, sexual orientation, disability, or any
+          other protected characteristic.
+        </p>
+        <p>
           We don&apos;t review content before it&apos;s posted, and we
           don&apos;t endorse or vouch for content that users share. To the
           extent permitted by law, we are not liable for content uploaded
