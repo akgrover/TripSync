@@ -6,24 +6,24 @@ import { ShieldCheck, Lock, Ban, ScanFace } from "lucide-react";
 const points = [
   {
     icon: Lock,
-    title: "End-to-end encrypted",
-    description: "Biometric face data is encrypted in transit and at rest.",
+    title: "Encrypted",
+    description: "Your photos and face data are encrypted in transit and at rest.",
   },
   {
     icon: Ban,
     title: "Never sold",
-    description: "Your data funds a subscription business, not an ad business.",
+    description: "We never sell your data or use it for advertising.",
   },
   {
     icon: ScanFace,
-    title: "Used only to filter your galleries",
-    description: "Matching stays scoped to the albums you're a member of.",
+    title: "Only to sort your galleries",
+    description: "Face matching stays scoped to the groups you're a member of.",
   },
 ];
 
 export function PrivacyCallout() {
   return (
-    <section className="mx-auto max-w-6xl px-6 py-20 md:py-24">
+    <section id="privacy" className="mx-auto max-w-6xl px-6 py-20 md:py-24">
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -39,8 +39,8 @@ export function PrivacyCallout() {
             Your photos belong to you.
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-slate-600">
-            Facial biometric data is encrypted end-to-end, never sold, and
-            only used to filter your group galleries within TripSync.
+            Your photos and face data are encrypted in transit and at rest, never
+            sold, and used only to sort your group galleries within TripSync.
           </p>
         </div>
 

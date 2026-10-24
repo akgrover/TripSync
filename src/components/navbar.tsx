@@ -5,9 +5,9 @@ import { Menu, X } from "lucide-react";
 import { Logo } from "./logo";
 
 const links = [
-  { label: "How it Works", href: "#how-it-works" },
+  { label: "How it works", href: "#how-it-works" },
   { label: "Features", href: "#features" },
-  { label: "Roadmap", href: "#roadmap" },
+  { label: "Privacy", href: "#privacy" },
 ];
 
 export function Navbar() {
@@ -34,10 +34,10 @@ export function Navbar() {
 
         <div className="hidden md:block">
           <a
-            href="#beta"
+            href="/studio"
             className="inline-flex items-center justify-center rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-teal-600/20 transition hover:bg-teal-700"
           >
-            Get Early Access
+            Open Studio
           </a>
         </div>
 
@@ -66,11 +66,11 @@ export function Navbar() {
               </a>
             ))}
             <a
-              href="#beta"
+              href="/studio"
               onClick={() => setOpen(false)}
               className="inline-flex items-center justify-center rounded-xl bg-teal-600 px-5 py-3 text-sm font-semibold text-white shadow-sm shadow-teal-600/20"
             >
-              Get Early Access
+              Open Studio
             </a>
           </div>
         </div>

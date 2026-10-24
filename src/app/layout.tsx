@@ -9,14 +9,14 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "TripSync — Every group photo. One shared vault.",
+  title: "TripSync — Group photos, sorted by AI face recognition",
   description:
-    "TripSync replaces messy drive links and compressed chat photos. Create a group album, drop your camera roll, and let smart facial recognition deliver the photos you're actually in. Now in private beta.",
-  metadataBase: new URL("https://tripsync.app"),
+    "Create a private group, add your photos, and TripSync's AI face recognition sorts the album so each person sees the shots they're in — full resolution. Photographers can upload a whole event from the web and share one link.",
+  metadataBase: new URL("https://thetripsync.in"),
   openGraph: {
-    title: "TripSync — Every group photo. One shared vault.",
+    title: "TripSync — Group photos, sorted by AI face recognition",
     description:
-      "Full-resolution group albums with AI face tagging. Join the private beta.",
+      "Private group photo sharing with AI face recognition. Each person gets the photos they're in.",
     type: "website",
   },
 };

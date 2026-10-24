@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { BetaForm } from "./beta-form";
+import { CtaButtons } from "./cta-buttons";
 
 export function FinalCta() {
   return (
@@ -15,18 +15,15 @@ export function FinalCta() {
         className="relative mx-auto max-w-3xl px-6 py-20 text-center md:py-24"
       >
         <h2 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
-          Stop losing photos in group chats.
+          Get everyone their photos.
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-lg text-slate-300">
-          Join the private beta and get your next trip&apos;s photos in one
-          full-resolution vault — sorted for you, automatically.
+          Start a group and let TripSync sort the album by face — each person
+          gets the photos they&apos;re in, full resolution.
         </p>
         <div className="mt-8 flex justify-center">
-          <BetaForm align="center" size="large" />
+          <CtaButtons align="center" />
         </div>
-        <p className="mt-4 text-xs text-slate-400">
-          Limited to 500 beta spots &bull; Free forever for early users
-        </p>
       </motion.div>
     </section>
   );

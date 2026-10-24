@@ -2,53 +2,48 @@
 
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Sparkles, Users } from "lucide-react";
-import { BetaForm } from "./beta-form";
+import { ScanFace } from "lucide-react";
+import { CtaButtons } from "./cta-buttons";
 import { unsplash, groupMembers } from "@/lib/photos";
 
 export function Hero() {
   return (
-    <section id="beta" className="bg-glow relative overflow-hidden">
+    <section id="top" className="bg-glow relative overflow-hidden">
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-16 px-6 pb-20 pt-16 md:pb-28 md:pt-24 lg:grid-cols-2">
-        {/* Left: copy + form */}
+        {/* Left: copy + CTAs */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
         >
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-teal-200 bg-teal-50 px-3.5 py-1.5 text-xs font-semibold text-teal-700">
-            <Sparkles className="h-3.5 w-3.5" />
-            Private Beta &middot; Now accepting new groups
+            <ScanFace className="h-3.5 w-3.5" />
+            For weddings, events &amp; trips
           </div>
 
           <h1 className="text-4xl font-extrabold leading-[1.08] tracking-tight text-slate-900 sm:text-5xl lg:text-[3.25rem]">
-            Every group photo.
+            Group photos,
             <br />
-            One shared vault.
+            sorted by AI
             <br />
-            <span className="text-teal-600">Zero quality loss.</span>
+            <span className="text-teal-600">face recognition.</span>
           </h1>
 
           <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-600">
-            TripSync replaces messy drive links and compressed chat photos.
-            Create a group album, drop your camera roll, and let smart facial
-            recognition deliver the photos you&apos;re actually in.
+            Create a private group, add your photos, and TripSync sorts the album
+            by face — so each person sees the shots they&apos;re actually in, at
+            full resolution. No scrolling, no compressed chat forwards.
           </p>
 
-          <div className="mt-9 rounded-2xl border border-slate-200 bg-slate-50 p-5 shadow-sm sm:p-6">
-            <p className="mb-3 text-sm font-semibold text-slate-900">
-              Get your group off group chats.
-            </p>
-            <BetaForm size="large" />
-            <div className="mt-4 flex flex-col gap-2 text-xs text-slate-500 sm:flex-row sm:items-center sm:gap-4">
-              <span className="inline-flex items-center gap-1.5">
-                <Users className="h-3.5 w-3.5 text-teal-600" />
-                Limited to 500 beta spots
-              </span>
-              <span className="hidden sm:inline text-slate-300">&bull;</span>
-              <span>Free forever for early users</span>
-            </div>
+          <div className="mt-8">
+            <CtaButtons />
           </div>
+
+          <p className="mt-4 max-w-xl text-sm leading-relaxed text-slate-500">
+            Running an event? Upload the whole shoot from{" "}
+            <span className="font-medium text-slate-700">TripSync Studio</span> on the web and share
+            one link — guests join and find their photos automatically.
+          </p>
         </motion.div>
 
         {/* Right: photo collage */}
