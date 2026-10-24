@@ -122,11 +122,16 @@ export const studioApi = {
     }),
   joinGroup: (code: string) =>
     request<{ trip: StudioTrip }>("/trips/join", { method: "POST", body: { code } }),
-  // Owner-only: toggle whether members may upload to an event group.
+  // Owner-only group settings. Each call sends one changed field; the server returns the full trip.
   setMemberUploads: (tripId: string, allowMemberUploads: boolean) =>
     request<{ trip: StudioTrip }>(`/trips/${tripId}/settings`, {
       method: "POST",
       body: { allowMemberUploads },
+    }),
+  setPhotoVisibility: (tripId: string, photoVisibility: "everyone" | "matched_only") =>
+    request<{ trip: StudioTrip }>(`/trips/${tripId}/settings`, {
+      method: "POST",
+      body: { photoVisibility },
     }),
   // Owner-only: permanently delete the group and all its photos.
   deleteGroup: (tripId: string) => request<void>(`/trips/${tripId}`, { method: "DELETE" }),

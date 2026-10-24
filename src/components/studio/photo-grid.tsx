@@ -1,14 +1,24 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ImageIcon, Loader2, RefreshCw } from "lucide-react";
+import { ImageIcon, Loader2, RefreshCw, Trash2 } from "lucide-react";
 
 import { studioApi, ApiError } from "@/lib/studio/api";
 import { clearTokens } from "@/lib/studio/auth";
 import type { StudioPhoto } from "@/lib/studio/types";
+import { Dialog } from "./dialog";
 
 // `reload` is a counter the parent bumps (once) after an upload completes, to refetch the first page.
-export function PhotoGrid({ tripId, reload = 0 }: { tripId: string; reload?: number }) {
+// `canDelete` (owner) enables per-photo delete-for-everyone.
+export function PhotoGrid({
+  tripId,
+  reload = 0,
+  canDelete = false,
+}: {
+  tripId: string;
+  reload?: number;
+  canDelete?: boolean;
+}) {
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [photos, setPhotos] = useState<StudioPhoto[]>([]);
   const [total, setTotal] = useState(0);
@@ -16,6 +26,27 @@ export function PhotoGrid({ tripId, reload = 0 }: { tripId: string; reload?: num
   const [loadingMore, setLoadingMore] = useState(false);
   // Manual, user-initiated refresh (e.g. to pick up thumbnails generated after an upload).
   const [refreshTick, setRefreshTick] = useState(0);
+  // Photo pending delete-for-everyone confirmation.
+  const [pendingDelete, setPendingDelete] = useState<StudioPhoto | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  async function confirmDelete() {
+    const photo = pendingDelete;
+    if (!photo || deleting) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      await studioApi.deletePhotoForAll(tripId, photo.id);
+      setPhotos((prev) => prev.filter((p) => p.id !== photo.id));
+      setTotal((t) => Math.max(0, t - 1));
+      setPendingDelete(null);
+    } catch {
+      // Keep the photo; the dialog stays so the user can retry or cancel.
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   // Fetch page 1 exactly once per (tripId, reload, refreshTick). The ref dedupes repeat effect runs
   // — notably React Strict Mode's double-invoke in dev — so the network call never fires twice.
@@ -97,7 +128,10 @@ export function PhotoGrid({ tripId, reload = 0 }: { tripId: string; reload?: num
       </div>
       <div className="grid grid-cols-3 gap-1 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
         {photos.map((photo) => (
-          <div key={photo.id} className="relative aspect-square overflow-hidden rounded-md bg-slate-100">
+          <div
+            key={photo.id}
+            className="group relative aspect-square overflow-hidden rounded-md bg-slate-100"
+          >
             {photo.thumbUri ? (
               // eslint-disable-next-line @next/next/no-img-element -- static export, images unoptimized
               <img
@@ -113,6 +147,16 @@ export function PhotoGrid({ tripId, reload = 0 }: { tripId: string; reload?: num
                 <ImageIcon className="h-5 w-5" />
               </div>
             )}
+            {canDelete ? (
+              <button
+                type="button"
+                aria-label="Delete photo for everyone"
+                onClick={() => setPendingDelete(photo)}
+                className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-slate-900/60 text-white opacity-0 backdrop-blur-sm transition hover:bg-red-600 focus:opacity-100 group-hover:opacity-100"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
           </div>
         ))}
       </div>
@@ -130,6 +174,46 @@ export function PhotoGrid({ tripId, reload = 0 }: { tripId: string; reload?: num
           </button>
         </div>
       ) : null}
+
+      <Dialog
+        open={pendingDelete !== null}
+        onClose={() => !deleting && setPendingDelete(null)}
+        title="Delete this photo?"
+      >
+        <div className="flex gap-4">
+          {pendingDelete?.thumbUri ? (
+            // eslint-disable-next-line @next/next/no-img-element -- static export, images unoptimized
+            <img
+              src={pendingDelete.thumbUri}
+              alt=""
+              className="h-20 w-20 shrink-0 rounded-lg object-cover"
+            />
+          ) : null}
+          <p className="text-sm text-slate-600">
+            This removes the photo for <span className="font-medium">everyone</span> in the group and
+            can&apos;t be undone.
+          </p>
+        </div>
+        <div className="mt-4 flex gap-2">
+          <button
+            type="button"
+            onClick={() => setPendingDelete(null)}
+            disabled={deleting}
+            className="flex-1 rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => void confirmDelete()}
+            disabled={deleting}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-60"
+          >
+            {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Delete
+          </button>
+        </div>
+      </Dialog>
     </div>
   );
 }

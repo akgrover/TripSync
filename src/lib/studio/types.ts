@@ -31,6 +31,7 @@ export type StudioTrip = {
   isOwner?: boolean;
   allowMemberUploads?: boolean;
   canUpload?: boolean;
+  photoVisibility?: "everyone" | "matched_only";
 };
 
 export type StudioPhoto = {

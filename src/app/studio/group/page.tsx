@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { ArrowLeft, Loader2, Lock, Trash2 } from "lucide-react";
+import { ArrowLeft, Lock } from "lucide-react";
 
 import { studioApi, ApiError } from "@/lib/studio/api";
 import { clearTokens } from "@/lib/studio/auth";
 import { joinLink } from "@/lib/studio/config";
 import type { StudioTrip } from "@/lib/studio/types";
 import { CopyButton } from "@/components/studio/copy-button";
-import { Dialog } from "@/components/studio/dialog";
+import { GroupSettings } from "@/components/studio/group-settings";
 import { UploadPanel } from "@/components/studio/upload-panel";
 import { PhotoGrid } from "@/components/studio/photo-grid";
 
@@ -21,42 +21,11 @@ function GroupDetail() {
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [trip, setTrip] = useState<StudioTrip | null>(null);
   const [reload, setReload] = useState(0);
-  const [togglingUploads, setTogglingUploads] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
   // Refetch the grid once, when a whole upload completes. (Thumbnails that aren't ready yet show a
   // placeholder; the grid's Refresh button pulls them in on demand — no background polling.)
   function handleUploaded() {
     setReload((n) => n + 1);
-  }
-
-  async function toggleUploads(next: boolean) {
-    if (!trip || togglingUploads) {
-      return;
-    }
-    setTogglingUploads(true);
-    try {
-      const res = await studioApi.setMemberUploads(trip.id, next);
-      setTrip(res.trip);
-    } catch {
-      // Leave the toggle as-is; the switch reflects the server value on next load.
-    } finally {
-      setTogglingUploads(false);
-    }
-  }
-
-  async function deleteGroup() {
-    if (!trip || deleting) {
-      return;
-    }
-    setDeleting(true);
-    try {
-      await studioApi.deleteGroup(trip.id);
-      router.replace("/studio");
-    } catch {
-      setDeleting(false);
-    }
   }
 
   useEffect(() => {
@@ -118,43 +87,8 @@ function GroupDetail() {
           ) : null}
 
           {trip.isOwner ? (
-            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4">
-              {trip.storageMode === "single_payer" ? (
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={trip.allowMemberUploads ?? false}
-                    disabled={togglingUploads}
-                    onClick={() => void toggleUploads(!(trip.allowMemberUploads ?? false))}
-                    className={`relative h-6 w-11 shrink-0 rounded-full transition ${
-                      trip.allowMemberUploads ? "bg-teal-600" : "bg-slate-300"
-                    } disabled:opacity-60`}
-                  >
-                    <span
-                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${
-                        trip.allowMemberUploads ? "left-[22px]" : "left-0.5"
-                      }`}
-                    />
-                  </button>
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">Let members upload photos</p>
-                    <p className="text-xs text-slate-500">
-                      When off, only you can add photos to this event.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <span />
-              )}
-              <button
-                type="button"
-                onClick={() => setDeleteOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 transition hover:bg-red-50"
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete group
-              </button>
+            <div className="mt-6">
+              <GroupSettings trip={trip} onChange={setTrip} onDeleted={() => router.replace("/studio")} />
             </div>
           ) : null}
 
@@ -169,36 +103,10 @@ function GroupDetail() {
             </div>
           )}
           <div className="mt-10">
-            <PhotoGrid tripId={trip.id} reload={reload} />
+            <PhotoGrid tripId={trip.id} reload={reload} canDelete={trip.isOwner ?? false} />
           </div>
         </div>
       )}
-
-      <Dialog open={deleteOpen} onClose={() => !deleting && setDeleteOpen(false)} title="Delete group?">
-        <p className="text-sm text-slate-600">
-          This permanently deletes the group and every photo in it, for everyone. This can&apos;t be
-          undone.
-        </p>
-        <div className="mt-4 flex gap-2">
-          <button
-            type="button"
-            onClick={() => setDeleteOpen(false)}
-            disabled={deleting}
-            className="flex-1 rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={() => void deleteGroup()}
-            disabled={deleting}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-60"
-          >
-            {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Delete group
-          </button>
-        </div>
-      </Dialog>
     </div>
   );
 }
