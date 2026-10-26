@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Loader2, Phone } from "lucide-react";
 
@@ -15,7 +14,6 @@ function toE164(local: string): string {
 const RESEND_SECONDS = 30;
 
 export default function StudioLoginPage() {
-  const router = useRouter();
   const [step, setStep] = useState<"phone" | "code">("phone");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
@@ -68,7 +66,10 @@ export default function StudioLoginPage() {
     try {
       const res = await studioApi.verifyOtp(toE164(phoneDigits), value);
       setTokens(res);
-      router.replace("/studio");
+      // Full-page navigation (not router.replace): StudioShell lives in the shared /studio layout, so
+      // a client-side navigation keeps it mounted with its auth state still "out" and the gate bounces
+      // us back here. A hard load remounts the shell, which reads the just-set token and lets us in.
+      window.location.assign("/studio/");
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 401
