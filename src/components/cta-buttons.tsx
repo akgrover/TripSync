@@ -37,11 +37,11 @@ function StoreButton({ href, glyph, top, bottom }: { href: string; glyph: React.
 }
 
 // Shared homepage CTAs: the two app stores plus "Open Studio" (the web portal for
-// photographers/organizers). App Store falls back to "#" until APP_STORE_URL is set.
+// photographers/organizers).
 export function CtaButtons({ align = "left" }: { align?: "left" | "center" }) {
   return (
     <div className={`flex flex-wrap items-center gap-3 ${align === "center" ? "justify-center" : ""}`}>
-      <StoreButton href={APP_STORE_URL || "#"} glyph={<AppleGlyph />} top="Download on the" bottom="App Store" />
+      <StoreButton href={APP_STORE_URL} glyph={<AppleGlyph />} top="Download on the" bottom="App Store" />
       <StoreButton href={PLAY_STORE_URL} glyph={<PlayGlyph />} top="Get it on" bottom="Google Play" />
       <a
         href={STUDIO_URL}

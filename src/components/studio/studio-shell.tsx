@@ -17,7 +17,10 @@ import { clearTokens, getAccessToken } from "@/lib/studio/auth";
 export function StudioShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const isLoginRoute = pathname === "/studio/login";
+  // Static export runs with trailingSlash:true, so usePathname() returns "/studio/login/" (with the
+  // trailing slash). Strip it before comparing, or a logged-out visitor to /studio/login/ fails the
+  // login-route check, hits the auth gate, and gets stuck on "Loading…" in a redirect loop.
+  const isLoginRoute = (pathname ?? "").replace(/\/+$/, "") === "/studio/login";
 
   const [auth, setAuth] = useState<"checking" | "in" | "out">("checking");
 
