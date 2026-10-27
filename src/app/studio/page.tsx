@@ -9,6 +9,7 @@ import { clearTokens } from "@/lib/studio/auth";
 import type { StudioTrip } from "@/lib/studio/types";
 import { Dialog } from "@/components/studio/dialog";
 import { GroupCard } from "@/components/studio/group-card";
+import { StudioStats } from "@/components/studio/studio-stats";
 
 export default function StudioHomePage() {
   const router = useRouter();
@@ -119,6 +120,8 @@ export default function StudioHomePage() {
           </button>
         </div>
       </div>
+
+      {status === "ready" ? <StudioStats trips={trips} /> : null}
 
       <div className="mt-8">
         {status === "loading" ? (

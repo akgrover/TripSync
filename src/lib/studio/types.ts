@@ -5,6 +5,9 @@ export type StudioUser = {
   name: string;
   phone?: string;
   avatarUrl?: string | null;
+  // True until the user has picked a real display name (phone sign-ups start on a placeholder).
+  // We ask first-time users for their name before sending them into the portal.
+  needsName?: boolean;
 };
 
 export type AuthResponse = {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, Loader2, Phone } from "lucide-react";
+import { ArrowLeft, Loader2, Phone, User } from "lucide-react";
 
 import { studioApi, ApiError } from "@/lib/studio/api";
 import { setTokens } from "@/lib/studio/auth";
@@ -14,11 +14,13 @@ function toE164(local: string): string {
 const RESEND_SECONDS = 30;
 
 export default function StudioLoginPage() {
-  const [step, setStep] = useState<"phone" | "code">("phone");
+  const [step, setStep] = useState<"phone" | "code" | "name">("phone");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
+  const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [savingName, setSavingName] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(0);
 
@@ -66,10 +68,14 @@ export default function StudioLoginPage() {
     try {
       const res = await studioApi.verifyOtp(toE164(phoneDigits), value);
       setTokens(res);
-      // Full-page navigation (not router.replace): StudioShell lives in the shared /studio layout, so
-      // a client-side navigation keeps it mounted with its auth state still "out" and the gate bounces
-      // us back here. A hard load remounts the shell, which reads the just-set token and lets us in.
-      window.location.assign("/studio/");
+      // First-time sign-ups have no display name yet (same as the app's onboarding) — ask for one
+      // before entering the portal. We're now authenticated, so the PATCH /me call below will work.
+      if (res.user.needsName) {
+        setStep("name");
+        setVerifying(false);
+        return;
+      }
+      enterStudio();
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 401
@@ -80,6 +86,32 @@ export default function StudioLoginPage() {
       );
       setCode("");
       setVerifying(false);
+    }
+  }
+
+  // Full-page navigation (not router.replace): StudioShell lives in the shared /studio layout, so a
+  // client-side navigation keeps it mounted with its auth state still "out" and the gate bounces us
+  // back here. A hard load remounts the shell, which reads the just-set token and lets us in.
+  function enterStudio() {
+    window.location.assign("/studio/");
+  }
+
+  async function saveName() {
+    const value = name.trim();
+    if (value.length < 2 || savingName) {
+      if (value.length < 2) {
+        setError("Please enter your name.");
+      }
+      return;
+    }
+    setSavingName(true);
+    setError(null);
+    try {
+      await studioApi.updateName(value);
+      enterStudio();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't save your name. Please try again.");
+      setSavingName(false);
     }
   }
 
@@ -96,12 +128,18 @@ export default function StudioLoginPage() {
     <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="mb-5 flex items-center gap-2">
         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-600 text-white">
-          <Phone className="h-4 w-4" />
+          {step === "name" ? <User className="h-4 w-4" /> : <Phone className="h-4 w-4" />}
         </span>
         <div>
-          <h1 className="text-base font-semibold text-slate-900">Sign in to TripSync Studio</h1>
+          <h1 className="text-base font-semibold text-slate-900">
+            {step === "name" ? "What's your name?" : "Sign in to TripSync Studio"}
+          </h1>
           <p className="text-xs text-slate-500">
-            {step === "phone" ? "We'll text you a code" : `Code sent to +91 ${phoneDigits}`}
+            {step === "phone"
+              ? "We'll text you a code"
+              : step === "code"
+                ? `Code sent to +91 ${phoneDigits}`
+                : "This is how guests will see you"}
           </p>
         </div>
       </div>
@@ -135,7 +173,7 @@ export default function StudioLoginPage() {
             Send code
           </button>
         </>
-      ) : (
+      ) : step === "code" ? (
         <>
           <label className="mb-1 block text-sm font-medium text-slate-700">Enter the 6-digit code</label>
           <input
@@ -179,6 +217,31 @@ export default function StudioLoginPage() {
               </button>
             )}
           </div>
+        </>
+      ) : (
+        <>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Your name</label>
+          <input
+            value={name}
+            onChange={(e) => {
+              setError(null);
+              setName(e.target.value);
+            }}
+            onKeyDown={(e) => e.key === "Enter" && void saveName()}
+            placeholder="e.g. Priya Sharma"
+            maxLength={80}
+            autoFocus
+            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+          />
+          <button
+            type="button"
+            onClick={() => void saveName()}
+            disabled={name.trim().length < 2 || savingName}
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:opacity-60"
+          >
+            {savingName ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Continue
+          </button>
         </>
       )}
 

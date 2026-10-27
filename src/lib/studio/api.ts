@@ -110,6 +110,9 @@ export const studioApi = {
 
   // Authenticated.
   getMe: () => request<{ user: StudioUser }>("/me"),
+  // Set the display name (used for first-time sign-ups, same as the mobile app's onboarding).
+  updateName: (name: string) =>
+    request<{ user: StudioUser }>("/me", { method: "PATCH", body: { name } }),
 
   // Groups.
   getTrips: () => request<{ trips: StudioTrip[] }>("/trips"),
