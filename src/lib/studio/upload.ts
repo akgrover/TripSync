@@ -1,4 +1,4 @@
-import { putToS3, studioApi } from "./api";
+import { ApiError, putToS3, studioApi } from "./api";
 
 // Browser-decodable image types we accept. Others (HEIC, RAW, video, etc.) are skipped — the browser
 // can't read their dimensions and the API requires width/height.
@@ -21,6 +21,10 @@ export type UploadProgress = {
   skipped: number;
   inFlight: number;
   errors: { name: string; reason: string }[]; // capped sample for display
+  // Set when a terminal, group-wide condition stopped the run early (out of storage / uploads
+  // restricted). The remaining files were NOT attempted — the UI should explain why and let the
+  // user fix it and retry, rather than showing a wall of identical failures.
+  halted?: { code: string; message: string };
 };
 
 type UploadHandlers = {
@@ -61,16 +65,30 @@ async function sha256Hex(file: File): Promise<string | undefined> {
   }
 }
 
-async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
+// A failure that retrying can't fix: a 4xx that isn't 429 (e.g. 400 bad request, 401 auth dead,
+// 402 out of storage, 403 restricted, 404/409). Everything else — network errors (not an ApiError),
+// 5xx, and 429 — is transient and worth another attempt.
+export function isTerminalError(err: unknown): boolean {
+  if (err instanceof ApiError) {
+    return err.status < 500 && err.status !== 429;
+  }
+  return false;
+}
+
+// Retries transient failures with exponential backoff + jitter; bails immediately on a terminal one
+// so we don't burn attempts (or time) on something that will never succeed.
+async function withRetry<T>(fn: () => Promise<T>, attempts = 4): Promise<T> {
   let lastError: unknown;
   for (let i = 0; i < attempts; i += 1) {
     try {
       return await fn();
     } catch (err) {
       lastError = err;
-      if (i < attempts - 1) {
-        await new Promise((r) => setTimeout(r, 400 * (i + 1)));
+      if (isTerminalError(err) || i === attempts - 1) {
+        throw err;
       }
+      // 300ms, 600ms, 1200ms … plus up to 250ms of jitter to avoid synchronized retry waves.
+      await new Promise((r) => setTimeout(r, 300 * 2 ** i + Math.random() * 250));
     }
   }
   throw lastError;
@@ -189,9 +207,28 @@ export async function runUpload(
     const chunk = accepted.slice(i, i + BATCH_MAX);
     let batchId: string;
     try {
-      const res = await studioApi.createUploadBatch(tripId, chunk.length);
+      // Retry batch creation on transient failures (network/5xx) — it had none before, so a single
+      // blip used to fail a whole 100-photo chunk.
+      const res = await withRetry(() => studioApi.createUploadBatch(tripId, chunk.length));
       batchId = res.batch.id;
-    } catch {
+    } catch (err) {
+      // Group-wide terminal conditions: trying the remaining batches is pointless and just produces
+      // a wall of identical errors. Stop and tell the user exactly what to fix.
+      if (
+        err instanceof ApiError &&
+        (err.code === "EVENT_STORAGE_FULL" || err.code === "UPLOADS_RESTRICTED")
+      ) {
+        progress.halted = {
+          code: err.code,
+          message:
+            err.code === "EVENT_STORAGE_FULL"
+              ? "This event is out of storage, so the remaining photos weren't uploaded. Add more storage, then upload them again."
+              : "Only the host can add photos to this event, so the remaining photos weren't uploaded.",
+        };
+        emit(true);
+        break;
+      }
+      // One batch failed for some other reason — record it and move on to the next chunk.
       for (const c of chunk) {
         recordError(c.file.name, "Couldn't start upload");
       }

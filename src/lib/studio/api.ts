@@ -25,28 +25,62 @@ type RequestOptions = {
 // reload or an idle tab keeps working for the full refresh-token lifetime instead of forcing login.
 let refreshInFlight: Promise<boolean> | null = null;
 
+// True when the access token is within `bufferMs` of expiring (or already expired). Used to refresh
+// proactively BEFORE a request, so a long-running job (bulk uploads) doesn't stall on a wave of 401s
+// at the 15-minute boundary. Reads the JWT's `exp` claim locally — no verification needed, just timing.
+function accessTokenExpiresSoon(token: string, bufferMs = 60_000): boolean {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) {
+      return false;
+    }
+    const b64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = b64.padEnd(b64.length + ((4 - (b64.length % 4)) % 4), "=");
+    const { exp } = JSON.parse(atob(padded)) as { exp?: number };
+    return typeof exp === "number" && exp * 1000 - Date.now() < bufferMs;
+  } catch {
+    // Can't read the token — let the normal 401-refresh path handle it.
+    return false;
+  }
+}
+
 async function refreshAccessToken(): Promise<boolean> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) {
+    // Nothing to exchange — the session is unusable; clear so the app routes to login.
+    clearTokens();
     return false;
   }
   if (!refreshInFlight) {
     refreshInFlight = (async () => {
-      try {
-        const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refreshToken }),
-        });
-        if (!res.ok) {
-          return false;
+      // Retry transient failures (network / 5xx) a few times. Only a DEFINITIVE rejection (the
+      // refresh token itself is invalid/expired) logs the user out — a transient blip must not nuke
+      // a long upload. If all retries fail transiently we keep the tokens so a later call can recover.
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refreshToken }),
+          });
+          if (res.ok) {
+            const data = (await res.json()) as { accessToken: string; refreshToken: string };
+            setTokens(data);
+            return true;
+          }
+          if (res.status === 401 || res.status === 403) {
+            clearTokens();
+            return false;
+          }
+          // Other statuses (5xx, etc.) are transient — fall through and retry.
+        } catch {
+          // Network error — transient; fall through and retry.
         }
-        const data = (await res.json()) as { accessToken: string; refreshToken: string };
-        setTokens(data);
-        return true;
-      } catch {
-        return false;
+        if (attempt < 2) {
+          await new Promise((r) => setTimeout(r, 500 * 2 ** attempt + Math.random() * 250));
+        }
       }
+      return false;
     })().finally(() => {
       refreshInFlight = null;
     });
@@ -57,7 +91,13 @@ async function refreshAccessToken(): Promise<boolean> {
 async function request<T>(path: string, options: RequestOptions = {}, retried = false): Promise<T> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (options.auth !== false) {
-    const token = getAccessToken();
+    let token = getAccessToken();
+    // Proactively refresh an about-to-expire token. The token is still valid here, so if the refresh
+    // blips transiently we simply proceed with it and let the 401 path recover — no harm done.
+    if (token && !retried && accessTokenExpiresSoon(token)) {
+      await refreshAccessToken();
+      token = getAccessToken() ?? token;
+    }
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
@@ -70,12 +110,12 @@ async function request<T>(path: string, options: RequestOptions = {}, retried = 
   });
 
   if (res.status === 401 && options.auth !== false) {
-    // Try a one-time refresh + retry before giving up. Only clear tokens (real logout) if the
-    // refresh token is also dead or the retried call still 401s.
+    // One refresh + retry before giving up. refreshAccessToken clears tokens itself ONLY when the
+    // refresh token is truly dead; a transient refresh failure leaves the session intact so the next
+    // call can recover (this call still surfaces the 401 to its caller).
     if (!retried && (await refreshAccessToken())) {
       return request<T>(path, options, true);
     }
-    clearTokens();
   }
 
   if (!res.ok) {
@@ -113,6 +153,12 @@ export const studioApi = {
   // Set the display name (used for first-time sign-ups, same as the mobile app's onboarding).
   updateName: (name: string) =>
     request<{ user: StudioUser }>("/me", { method: "PATCH", body: { name } }),
+  // Set the default watermark style (text + opacity) for this photographer's events ('' clears text).
+  setWatermarkStyle: (watermarkText: string, watermarkOpacity: number) =>
+    request<{ user: StudioUser }>("/me", {
+      method: "PATCH",
+      body: { watermarkText, watermarkOpacity },
+    }),
 
   // Groups.
   getTrips: () => request<{ trips: StudioTrip[] }>("/trips"),
@@ -136,6 +182,21 @@ export const studioApi = {
       method: "POST",
       body: { photoVisibility },
     }),
+  // Event groups: turn the watermark on/off. Enabling queues existing photos for watermarking.
+  setWatermark: (tripId: string, enabled: boolean) =>
+    request<{ trip: StudioTrip }>(`/trips/${tripId}/settings`, {
+      method: "POST",
+      body: { watermarkEnabled: enabled },
+    }),
+  // Owner-only: grant/revoke a member's clean (un-watermarked) access after they pay the photographer.
+  setMemberAccess: (tripId: string, memberId: string, cleanAccess: boolean) =>
+    request<{ trip: StudioTrip }>(`/trips/${tripId}/members/${memberId}/clean-access`, {
+      method: "POST",
+      body: { cleanAccess },
+    }),
+  // Owner-only: re-generate every photo's watermark with the current style (after changing it).
+  regenerateWatermark: (tripId: string) =>
+    request<{ ok: boolean }>(`/trips/${tripId}/watermark/regenerate`, { method: "POST" }),
   // Owner-only: permanently delete the group and all its photos.
   deleteGroup: (tripId: string) => request<void>(`/trips/${tripId}`, { method: "DELETE" }),
   // Remove a photo for everyone in the group (owner or the photo's uploader).

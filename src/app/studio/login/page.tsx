@@ -93,6 +93,9 @@ export default function StudioLoginPage() {
   // client-side navigation keeps it mounted with its auth state still "out" and the gate bounces us
   // back here. A hard load remounts the shell, which reads the just-set token and lets us in.
   function enterStudio() {
+    // Intentional full reload (not router.push): StudioShell lives in the shared /studio layout, so a
+    // client-side nav keeps it mounted with stale "out" auth and the gate bounces back to login.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- see above
     window.location.assign("/studio/");
   }
 

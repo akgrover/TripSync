@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { FolderUp, Loader2, UploadCloud } from "lucide-react";
+import { AlertTriangle, FolderUp, Loader2, UploadCloud } from "lucide-react";
 
 import { runUpload, type UploadProgress } from "@/lib/studio/upload";
 
@@ -115,6 +115,8 @@ export function UploadPanel({ tripId, onUploaded }: { tripId: string; onUploaded
                   <Loader2 className="h-4 w-4 animate-spin text-teal-600" />
                   Uploading…
                 </span>
+              ) : progress.halted ? (
+                "Upload stopped"
               ) : (
                 "Upload complete"
               )}
@@ -134,6 +136,13 @@ export function UploadPanel({ tripId, onUploaded }: { tripId: string; onUploaded
             {progress.error > 0 ? <span className="text-red-600">{progress.error} failed</span> : null}
             {progress.skipped > 0 ? <span>{progress.skipped} skipped</span> : null}
           </div>
+
+          {progress.halted ? (
+            <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{progress.halted.message}</span>
+            </div>
+          ) : null}
 
           {progress.errors.length > 0 ? (
             <ul className="mt-3 max-h-32 overflow-auto rounded-lg bg-slate-50 p-3 text-xs text-slate-500">

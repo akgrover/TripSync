@@ -11,6 +11,7 @@ import { joinLink } from "@/lib/studio/config";
 import type { StudioTrip } from "@/lib/studio/types";
 import { CopyButton } from "@/components/studio/copy-button";
 import { GroupSettings } from "@/components/studio/group-settings";
+import { MemberAccess } from "@/components/studio/member-access";
 import { UploadPanel } from "@/components/studio/upload-panel";
 import { PhotoGrid } from "@/components/studio/photo-grid";
 
@@ -89,6 +90,12 @@ function GroupDetail() {
           {trip.isOwner ? (
             <div className="mt-6">
               <GroupSettings trip={trip} onChange={setTrip} onDeleted={() => router.replace("/studio")} />
+            </div>
+          ) : null}
+
+          {trip.isOwner && trip.watermark?.enabled ? (
+            <div className="mt-4">
+              <MemberAccess trip={trip} onChange={setTrip} />
             </div>
           ) : null}
 
