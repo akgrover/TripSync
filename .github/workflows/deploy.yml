@@ -35,6 +35,11 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          # NEXT_PUBLIC_* vars are inlined at build time. Set this (repo → Settings → Secrets and
+          # variables → Actions → Variables) to the same Web client ID the app uses, so the
+          # "Sign in with Google" button renders on the deployed site. Empty = button hidden.
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
