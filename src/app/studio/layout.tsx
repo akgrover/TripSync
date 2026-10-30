@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { NetworkToast } from "@/components/studio/network-toast";
 import { StudioShell } from "@/components/studio/studio-shell";
 
 export const metadata: Metadata = {
@@ -9,5 +10,10 @@ export const metadata: Metadata = {
 };
 
 export default function StudioLayout({ children }: { children: React.ReactNode }) {
-  return <StudioShell>{children}</StudioShell>;
+  return (
+    <>
+      <StudioShell>{children}</StudioShell>
+      <NetworkToast />
+    </>
+  );
 }

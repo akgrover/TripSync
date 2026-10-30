@@ -6,6 +6,7 @@ import { FolderPlus, Loader2, LogIn, RefreshCw } from "lucide-react";
 
 import { studioApi, ApiError } from "@/lib/studio/api";
 import { clearTokens } from "@/lib/studio/auth";
+import { firstNameOf, getCachedMe } from "@/lib/studio/profile";
 import type { StudioTrip } from "@/lib/studio/types";
 import { Dialog } from "@/components/studio/dialog";
 import { GroupCard } from "@/components/studio/group-card";
@@ -22,6 +23,19 @@ export default function StudioHomePage() {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [dialogError, setDialogError] = useState<string | null>(null);
+  const [firstName, setFirstName] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    void getCachedMe()
+      .then((user) => {
+        if (active) setFirstName(firstNameOf(user.name));
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -90,7 +104,9 @@ export default function StudioHomePage() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Your groups</h1>
+          <h1 className="text-2xl font-semibold text-slate-900">
+            {firstName ? `Welcome back, ${firstName}` : "Your groups"}
+          </h1>
           <p className="mt-1 text-slate-500">Create an event group or join one, then upload photos.</p>
         </div>
         <div className="flex gap-2">

@@ -3,9 +3,13 @@
 import { useState } from "react";
 import { Check, Loader2, RefreshCw, Trash2 } from "lucide-react";
 
-import { studioApi } from "@/lib/studio/api";
+import { ApiError, studioApi } from "@/lib/studio/api";
 import type { StudioTrip } from "@/lib/studio/types";
 import { Dialog } from "./dialog";
+
+function errorMessage(err: unknown, fallback: string): string {
+  return err instanceof ApiError ? err.message : fallback;
+}
 
 // A single on/off setting row. Add more by dropping another <ToggleRow> into the list below.
 function ToggleRow({
@@ -54,15 +58,22 @@ export function GroupSettings({
   trip,
   onChange,
   onDeleted,
+  canWatermark = true,
 }: {
   trip: StudioTrip;
   onChange: (trip: StudioTrip) => void;
   onDeleted: () => void;
+  // When false (owner's plan doesn't include watermarking), the watermark controls are hidden.
+  canWatermark?: boolean;
 }) {
   const [busy, setBusy] = useState<null | "uploads" | "visibility" | "watermark" | "reapply">(null);
   const [reapplied, setReapplied] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  // Shown when a save fails, so a toggle that "doesn't move" has a visible reason instead of silently
+  // snapping back. Cleared when the next action starts.
+  const [error, setError] = useState<string | null>(null);
 
   const isEvent = trip.storageMode === "single_payer";
   const everyoneSees = (trip.photoVisibility ?? "everyone") === "everyone";
@@ -71,11 +82,13 @@ export function GroupSettings({
 
   async function toggleUploads(next: boolean) {
     setBusy("uploads");
+    setError(null);
     try {
       const res = await studioApi.setMemberUploads(trip.id, next);
       onChange(res.trip);
-    } catch {
-      // Leave the switch as-is; it reflects the server value on next load.
+    } catch (err) {
+      // The switch reflects the server value, so it stays put — surface why it didn't move.
+      setError(errorMessage(err, "Couldn't save that change. Please try again."));
     } finally {
       setBusy(null);
     }
@@ -83,11 +96,12 @@ export function GroupSettings({
 
   async function toggleVisibility(next: boolean) {
     setBusy("visibility");
+    setError(null);
     try {
       const res = await studioApi.setPhotoVisibility(trip.id, next ? "everyone" : "matched_only");
       onChange(res.trip);
-    } catch {
-      // no-op
+    } catch (err) {
+      setError(errorMessage(err, "Couldn't save that change. Please try again."));
     } finally {
       setBusy(null);
     }
@@ -95,11 +109,12 @@ export function GroupSettings({
 
   async function toggleWatermark(next: boolean) {
     setBusy("watermark");
+    setError(null);
     try {
       const res = await studioApi.setWatermark(trip.id, next);
       onChange(res.trip);
-    } catch {
-      // no-op
+    } catch (err) {
+      setError(errorMessage(err, "Couldn't save that change. Please try again."));
     } finally {
       setBusy(null);
     }
@@ -110,13 +125,14 @@ export function GroupSettings({
       return;
     }
     setBusy("reapply");
+    setError(null);
     try {
       await studioApi.regenerateWatermark(trip.id);
       setReapplied(true);
       // Re-generation runs in the background; let them trigger it again after a moment.
       setTimeout(() => setReapplied(false), 4000);
-    } catch {
-      // no-op
+    } catch (err) {
+      setError(errorMessage(err, "Couldn't start re-applying the watermark. Please try again."));
     } finally {
       setBusy(null);
     }
@@ -127,20 +143,22 @@ export function GroupSettings({
       return;
     }
     setDeleting(true);
+    setDeleteError(null);
     try {
       await studioApi.deleteGroup(trip.id);
       onDeleted();
-    } catch {
+    } catch (err) {
+      setDeleteError(errorMessage(err, "Couldn't delete the group. Please try again."));
       setDeleting(false);
     }
   }
 
+  // Rendered inside the group's Settings slide-over, which provides the title + container chrome.
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white">
-      <div className="border-b border-slate-100 px-5 py-3">
-        <h2 className="text-sm font-semibold text-slate-900">Group settings</h2>
-      </div>
-
+    <div className="py-1">
+      {error ? (
+        <p className="mx-5 mb-1 mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
+      ) : null}
       <div className="divide-y divide-slate-100 px-5">
         {isEvent ? (
           <ToggleRow
@@ -156,7 +174,7 @@ export function GroupSettings({
           />
         ) : null}
 
-        {isEvent ? (
+        {isEvent && (canWatermark || watermarkOn) ? (
           <ToggleRow
             title="Watermark photos for guests"
             description={
@@ -183,7 +201,7 @@ export function GroupSettings({
         />
       </div>
 
-      {isEvent && trip.watermark?.enabled ? (
+      {isEvent && canWatermark && trip.watermark?.enabled ? (
         <div className="flex items-center justify-between gap-4 border-t border-slate-100 px-5 py-4">
           <div>
             <p className="text-sm font-medium text-slate-900">Re-apply watermark</p>
@@ -217,7 +235,10 @@ export function GroupSettings({
         </div>
         <button
           type="button"
-          onClick={() => setDeleteOpen(true)}
+          onClick={() => {
+            setDeleteError(null);
+            setDeleteOpen(true);
+          }}
           className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 transition hover:bg-red-50"
         >
           <Trash2 className="h-4 w-4" />
@@ -230,6 +251,7 @@ export function GroupSettings({
           This permanently deletes the group and every photo in it, for everyone. This can&apos;t be
           undone.
         </p>
+        {deleteError ? <p className="mt-3 text-sm text-red-600">{deleteError}</p> : null}
         <div className="mt-4 flex gap-2">
           <button
             type="button"

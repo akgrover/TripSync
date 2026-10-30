@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Camera, Home, LogOut, Settings } from "lucide-react";
 
 import { clearTokens, getAccessToken } from "@/lib/studio/auth";
+import { clearCachedMe, getCachedMe } from "@/lib/studio/profile";
 
 const NAV = [
   { href: "/studio", label: "Home", icon: Home },
@@ -28,6 +29,7 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
   const isLoginRoute = (pathname ?? "").replace(/\/+$/, "") === "/studio/login";
 
   const [auth, setAuth] = useState<"checking" | "in" | "out">("checking");
+  const [userName, setUserName] = useState<string | null>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time client-only auth read on mount
@@ -38,6 +40,22 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
+  // Load the signed-in user's name for the persistent sidebar identity (shared cache with Home).
+  useEffect(() => {
+    if (auth !== "in") {
+      return;
+    }
+    let active = true;
+    void getCachedMe()
+      .then((user) => {
+        if (active) setUserName(user.name);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [auth]);
+
   useEffect(() => {
     if (auth === "out" && !isLoginRoute) {
       router.replace("/studio/login");
@@ -46,6 +64,8 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
 
   function signOut() {
     clearTokens();
+    clearCachedMe();
+    setUserName(null);
     setAuth("out");
     router.replace("/studio/login");
   }
@@ -71,18 +91,19 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-dvh bg-slate-50">
-      {/* Desktop left sidebar */}
-      <aside className="hidden w-56 shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
+      {/* Desktop left sidebar — sticky full-height so the footer (identity + sign out) stays pinned
+          while the main content scrolls. */}
+      <aside className="sticky top-0 hidden h-dvh w-56 shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
         <Link
           href="/studio"
-          className="flex h-14 items-center gap-2 border-b border-slate-100 px-4 font-semibold text-slate-900"
+          className="flex h-14 shrink-0 items-center gap-2 border-b border-slate-100 px-4 font-semibold text-slate-900"
         >
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-600 text-white">
             <Camera className="h-4 w-4" />
           </span>
           TripSync Studio
         </Link>
-        <nav className="flex-1 space-y-1 p-3">
+        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
           {NAV.map((item) => {
             const active = item.href === activeHref;
             return (
@@ -99,7 +120,18 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <div className="border-t border-slate-100 p-3">
+        <div className="shrink-0 border-t border-slate-100 p-3">
+          {userName ? (
+            <div className="mb-1 flex items-center gap-2.5 px-3 py-2">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-teal-100 text-xs font-semibold text-teal-700">
+                {(userName.trim()[0] ?? "?").toUpperCase()}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-slate-900">{userName}</p>
+                <p className="text-xs text-slate-400">Signed in</p>
+              </div>
+            </div>
+          ) : null}
           <button
             type="button"
             onClick={signOut}

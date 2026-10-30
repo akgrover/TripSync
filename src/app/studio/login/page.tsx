@@ -5,6 +5,8 @@ import { ArrowLeft, Loader2, Phone, User } from "lucide-react";
 
 import { studioApi, ApiError } from "@/lib/studio/api";
 import { setTokens } from "@/lib/studio/auth";
+import { GOOGLE_CLIENT_ID } from "@/lib/studio/config";
+import { GoogleSignInButton } from "@/components/studio/google-signin-button";
 
 // India-only, like the mobile app: the user types a 10-digit number and we send +91<digits>.
 function toE164(local: string): string {
@@ -118,6 +120,30 @@ export default function StudioLoginPage() {
     }
   }
 
+  async function handleGoogle(idToken: string) {
+    if (busy) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await studioApi.oauthLogin("google", idToken);
+      setTokens(res);
+      // Google provides a name, so needsName is normally false — but handle it for completeness.
+      if (res.user.needsName) {
+        setStep("name");
+        setBusy(false);
+        return;
+      }
+      enterStudio();
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Couldn't sign in with Google. Please try again.",
+      );
+      setBusy(false);
+    }
+  }
+
   function onCodeChange(next: string) {
     const digits = next.replace(/\D/g, "").slice(0, 6);
     setError(null);
@@ -175,6 +201,17 @@ export default function StudioLoginPage() {
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             Send code
           </button>
+
+          {GOOGLE_CLIENT_ID ? (
+            <>
+              <div className="my-4 flex items-center gap-3">
+                <span className="h-px flex-1 bg-slate-200" />
+                <span className="text-xs font-medium text-slate-400">or</span>
+                <span className="h-px flex-1 bg-slate-200" />
+              </div>
+              <GoogleSignInButton onCredential={(idToken) => void handleGoogle(idToken)} />
+            </>
+          ) : null}
         </>
       ) : step === "code" ? (
         <>

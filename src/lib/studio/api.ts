@@ -1,6 +1,14 @@
 import { API_BASE_URL } from "./config";
 import { clearTokens, getAccessToken, getRefreshToken, setTokens } from "./auth";
-import type { AuthResponse, PhotosPage, StudioTrip, StudioUser } from "./types";
+import type {
+  AdminFlag,
+  AdminOverview,
+  AdminWindow,
+  AuthResponse,
+  PhotosPage,
+  StudioTrip,
+  StudioUser,
+} from "./types";
 
 export class ApiError extends Error {
   status: number;
@@ -147,12 +155,26 @@ export const studioApi = {
     }),
   verifyOtp: (phone: string, code: string) =>
     request<AuthResponse>("/auth/otp/verify", { method: "POST", body: { phone, code }, auth: false }),
+  // Exchange a Google/Apple identity token (from the browser's Google Identity Services) for our
+  // session tokens. The verified token already carries name/email, so no separate profile is sent.
+  oauthLogin: (provider: "google" | "apple", identityToken: string) =>
+    request<AuthResponse>(`/auth/oauth/${provider}`, {
+      method: "POST",
+      body: { identityToken },
+      auth: false,
+    }),
 
   // Authenticated.
   getMe: () => request<{ user: StudioUser }>("/me"),
   // Set the display name (used for first-time sign-ups, same as the mobile app's onboarding).
   updateName: (name: string) =>
     request<{ user: StudioUser }>("/me", { method: "PATCH", body: { name } }),
+  // Connect a Google account to the signed-in user (links the provider; 409 on conflicts).
+  linkGoogle: (identityToken: string) =>
+    request<{ user: StudioUser }>("/me/link/oauth/google", {
+      method: "POST",
+      body: { identityToken },
+    }),
   // Set the default watermark style (text + opacity) for this photographer's events ('' clears text).
   setWatermarkStyle: (watermarkText: string, watermarkOpacity: number) =>
     request<{ user: StudioUser }>("/me", {
@@ -197,6 +219,9 @@ export const studioApi = {
   // Owner-only: re-generate every photo's watermark with the current style (after changing it).
   regenerateWatermark: (tripId: string) =>
     request<{ ok: boolean }>(`/trips/${tripId}/watermark/regenerate`, { method: "POST" }),
+  // Owner-only: create a logical folder for organising photos; returns the refreshed trip.
+  createFolder: (tripId: string, name: string) =>
+    request<{ trip: StudioTrip }>(`/trips/${tripId}/folders`, { method: "POST", body: { name } }),
   // Owner-only: permanently delete the group and all its photos.
   deleteGroup: (tripId: string) => request<void>(`/trips/${tripId}`, { method: "DELETE" }),
   // Remove a photo for everyone in the group (owner or the photo's uploader).
@@ -206,7 +231,7 @@ export const studioApi = {
     }),
   getTripPhotos: (
     tripId: string,
-    opts: { scope?: "all" | "mine"; cursor?: string; limit?: number } = {},
+    opts: { scope?: "all" | "mine"; cursor?: string; limit?: number; folder?: string } = {},
   ) => {
     const params = new URLSearchParams({
       scope: opts.scope ?? "all",
@@ -215,14 +240,19 @@ export const studioApi = {
     if (opts.cursor) {
       params.set("cursor", opts.cursor);
     }
+    // A folder id filters to that folder; "none" filters to ungrouped; omitted = the flat feed.
+    if (opts.folder) {
+      params.set("folder", opts.folder);
+    }
     return request<PhotosPage>(`/trips/${tripId}/photos?${params.toString()}`);
   },
 
-  // Uploads (3-step signed flow, same as the mobile app).
-  createUploadBatch: (tripId: string, totalCount: number, clientQueueId?: string) =>
+  // Uploads (3-step signed flow, same as the mobile app). `folderId` files the whole batch under one
+  // logical folder (omitted = ungrouped).
+  createUploadBatch: (tripId: string, totalCount: number, folderId?: string) =>
     request<{ batch: { id: string; totalCount: number; processedCount: number; status: string } }>(
       `/trips/${tripId}/upload-batches`,
-      { method: "POST", body: { totalCount, clientQueueId } },
+      { method: "POST", body: { totalCount, ...(folderId ? { folderId } : {}) } },
     ),
   initPhotoUpload: (
     tripId: string,
@@ -250,6 +280,27 @@ export const studioApi = {
       `/trips/${tripId}/upload-batches/${batchId}/photos/complete`,
       { method: "POST", body },
     ),
+
+  // Admin portal (hidden). 404s for non-admins — the page treats that as "not authorized".
+  // `window` scopes the upload/sign-up counts (1d/7d/30d/all); other columns are current state.
+  getAdminOverview: (window: AdminWindow = "all") =>
+    request<AdminOverview>(`/admin/overview?window=${window}`),
+  getAdminFlags: () => request<{ flags: AdminFlag[] }>("/admin/flags"),
+  setAdminFlag: (key: string, enabled: boolean) =>
+    request<{ flags: AdminFlag[] }>("/admin/flags", { method: "POST", body: { key, enabled } }),
+  // Per-customer override: value=true force-on, false force-off, null clears (back to plan default).
+  // Identify the customer by any one of userId / phone / email.
+  setUserOverride: (body: {
+    userId?: string;
+    phone?: string;
+    email?: string;
+    feature: string;
+    value: boolean | null;
+  }) =>
+    request<{ id: string; name: string; entitlements: Record<string, boolean> }>("/admin/overrides", {
+      method: "POST",
+      body,
+    }),
 };
 
 // init returns a signed S3 PUT URL for a new photo, or a duplicate marker when the exact file is

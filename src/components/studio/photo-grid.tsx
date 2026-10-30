@@ -9,13 +9,16 @@ import type { StudioPhoto } from "@/lib/studio/types";
 import { Dialog } from "./dialog";
 
 // `reload` is a counter the parent bumps (once) after an upload completes, to refetch the first page.
-// `canDelete` (owner) enables per-photo delete-for-everyone.
+// `canDelete` (owner) enables per-photo delete-for-everyone. `folder` (a folder id) filters to that
+// folder; undefined shows the whole group.
 export function PhotoGrid({
   tripId,
+  folder,
   reload = 0,
   canDelete = false,
 }: {
   tripId: string;
+  folder?: string;
   reload?: number;
   canDelete?: boolean;
 }) {
@@ -48,21 +51,32 @@ export function PhotoGrid({
     }
   }
 
-  // Fetch page 1 exactly once per (tripId, reload, refreshTick). The ref dedupes repeat effect runs
-  // — notably React Strict Mode's double-invoke in dev — so the network call never fires twice.
+  // Fetch page 1 exactly once per (tripId, folder, reload, refreshTick). The ref dedupes repeat effect
+  // runs — notably React Strict Mode's double-invoke in dev — so the network call never fires twice.
   const fetchedKeyRef = useRef<string | null>(null);
+  // The folder whose photos are currently shown, so we can tell a folder *switch* (must clear + show
+  // loading, or we'd briefly show the previous folder's photos) from an in-place refetch (keep them).
+  const shownFolderRef = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
-    const key = `${tripId}:${reload}:${refreshTick}`;
+    const key = `${tripId}:${folder ?? "all"}:${reload}:${refreshTick}`;
     if (fetchedKeyRef.current === key) {
       return;
     }
+    const folderChanged = shownFolderRef.current !== (folder ?? null);
     fetchedKeyRef.current = key;
-    // Don't reset to "loading" on refetches (upload/refresh) — keep the current grid visible and
-    // swap in new data when it arrives. Only the initial render shows the loading state.
+    shownFolderRef.current = folder ?? null;
+    // On a folder switch, clear and show loading so the old folder's photos never linger. On an
+    // in-place refetch (upload/refresh of the same folder) keep the grid visible and swap data in.
+    if (folderChanged) {
+      setStatus("loading");
+      setPhotos([]);
+      setNextCursor(null);
+      setTotal(0);
+    }
     void (async () => {
       try {
-        const res = await studioApi.getTripPhotos(tripId, { scope: "all" });
+        const res = await studioApi.getTripPhotos(tripId, { scope: "all", folder });
         if (fetchedKeyRef.current !== key) return; // a newer request superseded this one
         setPhotos(res.photos);
         setTotal(res.total);
@@ -78,7 +92,7 @@ export function PhotoGrid({
         setStatus("error");
       }
     })();
-  }, [tripId, reload, refreshTick]);
+  }, [tripId, folder, reload, refreshTick]);
 
   async function loadMore() {
     if (!nextCursor || loadingMore) {
@@ -86,7 +100,7 @@ export function PhotoGrid({
     }
     setLoadingMore(true);
     try {
-      const res = await studioApi.getTripPhotos(tripId, { scope: "all", cursor: nextCursor });
+      const res = await studioApi.getTripPhotos(tripId, { scope: "all", cursor: nextCursor, folder });
       setPhotos((prev) => [...prev, ...res.photos]);
       setNextCursor(res.nextCursor);
       setTotal(res.total);
@@ -106,7 +120,7 @@ export function PhotoGrid({
   if (photos.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
-        No photos yet — upload some above.
+        {folder ? "No photos in this folder yet." : "No photos yet — upload some above."}
       </div>
     );
   }

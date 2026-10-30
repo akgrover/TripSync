@@ -5,7 +5,9 @@ import { Check, Loader2 } from "lucide-react";
 
 import { studioApi, ApiError } from "@/lib/studio/api";
 import { clearTokens } from "@/lib/studio/auth";
+import { GOOGLE_CLIENT_ID } from "@/lib/studio/config";
 import type { StudioUser } from "@/lib/studio/types";
+import { GoogleSignInButton } from "@/components/studio/google-signin-button";
 import { WatermarkPreview } from "@/components/studio/watermark-preview";
 
 const DEFAULT_OPACITY = 0.34;
@@ -22,6 +24,27 @@ export default function StudioSettingsPage() {
   const [opacity, setOpacity] = useState(DEFAULT_OPACITY);
   const [savingWatermark, setSavingWatermark] = useState(false);
   const [watermarkSaved, setWatermarkSaved] = useState(false);
+
+  const [linking, setLinking] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
+
+  async function linkGoogle(idToken: string) {
+    if (linking) {
+      return;
+    }
+    setLinking(true);
+    setLinkError(null);
+    try {
+      const res = await studioApi.linkGoogle(idToken);
+      setUser(res.user);
+    } catch (err) {
+      setLinkError(
+        err instanceof ApiError ? err.message : "Couldn't connect Google. Please try again.",
+      );
+    } finally {
+      setLinking(false);
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -99,6 +122,9 @@ export default function StudioSettingsPage() {
   const watermarkDirty =
     watermark.trim() !== (user?.watermarkText ?? "") ||
     opacity !== (user?.watermarkOpacity ?? DEFAULT_OPACITY);
+  // Hide watermark settings when the plan doesn't include it (only on an explicit false, so an older
+  // /me payload without entitlements still shows them).
+  const showWatermark = user?.entitlements?.features?.watermark !== false;
 
   return (
     <div className="max-w-2xl">
@@ -143,7 +169,50 @@ export default function StudioSettingsPage() {
         </div>
       </section>
 
+      {/* Sign-in methods */}
+      {GOOGLE_CLIENT_ID ? (
+        <section className="mt-6 rounded-2xl border border-slate-200 bg-white">
+          <div className="border-b border-slate-100 px-5 py-3">
+            <h2 className="text-sm font-semibold text-slate-900">Sign-in methods</h2>
+            <p className="mt-0.5 text-sm text-slate-500">
+              Connect another way to sign in so you&apos;re never locked out.
+            </p>
+          </div>
+          <div className="p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-slate-900">Google</p>
+                <p className="text-xs text-slate-500">
+                  {user?.linkedMethods?.google
+                    ? (user.email ?? "Connected")
+                    : "Not connected"}
+                </p>
+              </div>
+              {user?.linkedMethods?.google ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-700">
+                  <Check className="h-3.5 w-3.5" />
+                  Connected
+                </span>
+              ) : linking ? (
+                <span className="inline-flex items-center gap-1.5 text-sm text-slate-500">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Connecting…
+                </span>
+              ) : (
+                <GoogleSignInButton
+                  text="signin_with"
+                  width={220}
+                  onCredential={(idToken) => void linkGoogle(idToken)}
+                />
+              )}
+            </div>
+            {linkError ? <p className="mt-3 text-sm text-red-600">{linkError}</p> : null}
+          </div>
+        </section>
+      ) : null}
+
       {/* Watermark */}
+      {showWatermark ? (
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white">
         <div className="border-b border-slate-100 px-5 py-3">
           <h2 className="text-sm font-semibold text-slate-900">Watermark</h2>
@@ -214,6 +283,7 @@ export default function StudioSettingsPage() {
           </div>
         </div>
       </section>
+      ) : null}
     </div>
   );
 }

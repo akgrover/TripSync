@@ -13,23 +13,39 @@ const EXT_TO_TYPE: Record<string, string> = {
 const BATCH_MAX = 100; // server cap on totalCount per upload batch
 const MAX_HASH_BYTES = 40 * 1024 * 1024; // skip dedup hashing for very large files (bounds memory)
 
+const AUTO_SWEEP_DELAY_MS = 1500; // short pause before the one automatic retry pass
+
 export type UploadProgress = {
   total: number; // accepted (non-skipped) files
   done: number;
   duplicate: number;
-  error: number;
-  skipped: number;
+  // Files that failed but a retry could still fix (network / 5xx / 429 that exhausted per-file
+  // retries). After the automatic sweep this is the outstanding set the "Retry" button re-sends.
+  retryableFailed: number;
+  // Files a retry will never fix (unsupported here, 4xx, or the browser couldn't decode them).
+  terminalFailed: number;
+  skipped: number; // unsupported extension — filtered before upload; shown with terminalFailed
   inFlight: number;
+  retrying: boolean; // true during the automatic end-of-run retry pass
+  paused: boolean; // true while uploads are paused waiting for the network to come back
   errors: { name: string; reason: string }[]; // capped sample for display
   // Set when a terminal, group-wide condition stopped the run early (out of storage / uploads
-  // restricted). The remaining files were NOT attempted — the UI should explain why and let the
-  // user fix it and retry, rather than showing a wall of identical failures.
+  // restricted). The remaining files were NOT attempted — the UI explains why and offers Retry.
   halted?: { code: string; message: string };
+};
+
+// What runUpload returns: the final progress plus the files still worth retrying (so the caller can
+// offer a one-tap retry without the customer figuring out which ones failed).
+export type UploadResult = {
+  progress: UploadProgress;
+  retry: File[];
 };
 
 type UploadHandlers = {
   onProgress: (progress: UploadProgress) => void;
   concurrency?: number;
+  // Logical folder to file this upload under (omitted = ungrouped).
+  folderId?: string;
 };
 
 function contentTypeFor(file: File): string {
@@ -76,10 +92,18 @@ export function isTerminalError(err: unknown): boolean {
 }
 
 // Retries transient failures with exponential backoff + jitter; bails immediately on a terminal one
-// so we don't burn attempts (or time) on something that will never succeed.
-async function withRetry<T>(fn: () => Promise<T>, attempts = 4): Promise<T> {
+// so we don't burn attempts (or time) on something that will never succeed. `waitReady` (the online
+// gate) runs before every attempt, so while offline we park here instead of burning retries.
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  attempts = 4,
+  waitReady?: () => Promise<void>,
+): Promise<T> {
   let lastError: unknown;
   for (let i = 0; i < attempts; i += 1) {
+    if (waitReady) {
+      await waitReady();
+    }
     try {
       return await fn();
     } catch (err) {
@@ -107,25 +131,37 @@ async function pool<T>(items: T[], size: number, worker: (item: T) => Promise<vo
   await Promise.all(runners);
 }
 
+type Classified = { file: File; contentType: string };
+
 /**
  * Uploads original photos to a group: classifies files, chunks into batches of <=100, then runs each
  * file through init → S3 PUT → complete with bounded concurrency and retries. Originals are stored
- * as-is (no compression); the backend thumbnail worker makes grid thumbnails afterward. Progress is
- * reported via onProgress (throttled). Never throws — failures land in `progress.errors`.
+ * as-is (no compression); the backend thumbnail worker makes grid thumbnails afterward.
+ *
+ * Resilience (so the customer never has to figure out what failed):
+ *  - Pauses (doesn't fail) while the device is offline, resuming when the network returns.
+ *  - After the main pass, automatically retries the still-failing transient failures ONCE.
+ *  - Returns the files still worth retrying, so the caller can offer a one-tap "Retry".
+ *
+ * Progress is reported via onProgress (throttled). Never throws — failures are classified into
+ * retryable vs terminal and surfaced on the progress object.
  */
 export async function runUpload(
   tripId: string,
   files: File[],
-  { onProgress, concurrency = 5 }: UploadHandlers,
-): Promise<UploadProgress> {
-  const accepted: { file: File; contentType: string }[] = [];
+  { onProgress, concurrency = 5, folderId }: UploadHandlers,
+): Promise<UploadResult> {
+  const accepted: Classified[] = [];
   const progress: UploadProgress = {
     total: 0,
     done: 0,
     duplicate: 0,
-    error: 0,
+    retryableFailed: 0,
+    terminalFailed: 0,
     skipped: 0,
     inFlight: 0,
+    retrying: false,
+    paused: false,
     errors: [],
   };
 
@@ -153,91 +189,166 @@ export async function runUpload(
   };
   emit(true);
 
-  function recordError(name: string, reason: string) {
-    progress.error += 1;
+  // Online gate: if offline, park here (marking the run paused) until the network returns. Called
+  // before every network attempt, so we never burn retries — or mass-fail photos — during a drop.
+  const onlineGate = (): Promise<void> => {
+    if (typeof navigator === "undefined" || navigator.onLine) {
+      return Promise.resolve();
+    }
+    progress.paused = true;
+    emit(true);
+    return new Promise((resolve) => {
+      const handler = () => {
+        window.removeEventListener("online", handler);
+        progress.paused = false;
+        emit(true);
+        resolve();
+      };
+      window.addEventListener("online", handler);
+    });
+  };
+
+  // Files that failed this pass but a retry could fix. Reassigned each pass; closed over by the
+  // failure recorder below.
+  let retryBucket: Classified[] = [];
+  // Files a retry will never fix — accumulated across passes, never retried.
+  const terminal: Classified[] = [];
+
+  function recordFailure(item: Classified, reason: string, isTerminal: boolean) {
     if (progress.errors.length < 20) {
-      progress.errors.push({ name, reason });
+      progress.errors.push({ name: item.file.name, reason });
+    }
+    if (isTerminal) {
+      terminal.push(item);
+      progress.terminalFailed = terminal.length;
+    } else {
+      retryBucket.push(item);
+      progress.retryableFailed = retryBucket.length;
     }
   }
 
-  async function uploadOne(file: File, contentType: string, batchId: string) {
+  async function uploadOne(item: Classified, batchId: string) {
+    const { file, contentType } = item;
     progress.inFlight += 1;
     emit();
     try {
       const size = await readImageSize(file);
       if (!size) {
-        recordError(file.name, "Couldn't read image");
+        // A decode failure is treated as terminal (unsupported/damaged) — a retry won't help.
+        recordFailure(item, "Couldn't read image", true);
         return;
       }
       const contentHash = await sha256Hex(file);
-      const init = await withRetry(() =>
-        studioApi.initPhotoUpload(tripId, batchId, {
-          fileName: file.name,
-          contentType,
-          contentHash,
-          contentSize: file.size,
-        }),
+      const init = await withRetry(
+        () =>
+          studioApi.initPhotoUpload(tripId, batchId, {
+            fileName: file.name,
+            contentType,
+            contentHash,
+            contentSize: file.size,
+          }),
+        4,
+        onlineGate,
       );
       if ("duplicate" in init) {
         progress.duplicate += 1;
         return;
       }
-      await withRetry(() => putToS3(init.uploadUrl, file, contentType));
-      await withRetry(() =>
-        studioApi.completePhotoUpload(tripId, batchId, {
-          objectKey: init.objectKey,
-          contentType,
-          sizeBytes: file.size,
-          width: size.width,
-          height: size.height,
-          contentHash,
-          contentSize: file.size,
-        }),
+      await withRetry(() => putToS3(init.uploadUrl, file, contentType), 4, onlineGate);
+      await withRetry(
+        () =>
+          studioApi.completePhotoUpload(tripId, batchId, {
+            objectKey: init.objectKey,
+            contentType,
+            sizeBytes: file.size,
+            width: size.width,
+            height: size.height,
+            contentHash,
+            contentSize: file.size,
+          }),
+        4,
+        onlineGate,
       );
       progress.done += 1;
     } catch (err) {
-      recordError(file.name, err instanceof Error ? err.message : "Upload failed");
+      recordFailure(item, err instanceof Error ? err.message : "Upload failed", isTerminalError(err));
     } finally {
       progress.inFlight -= 1;
       emit();
     }
   }
 
-  for (let i = 0; i < accepted.length; i += BATCH_MAX) {
-    const chunk = accepted.slice(i, i + BATCH_MAX);
-    let batchId: string;
-    try {
-      // Retry batch creation on transient failures (network/5xx) — it had none before, so a single
-      // blip used to fail a whole 100-photo chunk.
-      const res = await withRetry(() => studioApi.createUploadBatch(tripId, chunk.length));
-      batchId = res.batch.id;
-    } catch (err) {
-      // Group-wide terminal conditions: trying the remaining batches is pointless and just produces
-      // a wall of identical errors. Stop and tell the user exactly what to fix.
-      if (
-        err instanceof ApiError &&
-        (err.code === "EVENT_STORAGE_FULL" || err.code === "UPLOADS_RESTRICTED")
-      ) {
-        progress.halted = {
-          code: err.code,
-          message:
-            err.code === "EVENT_STORAGE_FULL"
-              ? "This event is out of storage, so the remaining photos weren't uploaded. Add more storage, then upload them again."
-              : "Only the host can add photos to this event, so the remaining photos weren't uploaded.",
-        };
+  // Attempt the given files once, chunking into batches of <=100. Returns nothing; successes and
+  // failures land on the shared counters / buckets.
+  async function runPass(pending: Classified[]): Promise<void> {
+    for (let i = 0; i < pending.length; i += BATCH_MAX) {
+      const chunk = pending.slice(i, i + BATCH_MAX);
+      let batchId: string;
+      try {
+        const res = await withRetry(
+          () => studioApi.createUploadBatch(tripId, chunk.length, folderId),
+          4,
+          onlineGate,
+        );
+        batchId = res.batch.id;
+      } catch (err) {
+        // Group-wide terminal conditions: trying the remaining batches is pointless. Stop, explain,
+        // and keep the not-yet-attempted files as retryable so a tap can resume once it's fixed.
+        if (
+          err instanceof ApiError &&
+          (err.code === "EVENT_STORAGE_FULL" || err.code === "UPLOADS_RESTRICTED")
+        ) {
+          progress.halted = {
+            code: err.code,
+            message:
+              err.code === "EVENT_STORAGE_FULL"
+                ? "This event is out of storage, so the remaining photos weren't uploaded. Add more storage, then tap Retry."
+                : "Only the host can add photos to this event, so the remaining photos weren't uploaded.",
+          };
+          for (const c of pending.slice(i)) {
+            retryBucket.push(c);
+          }
+          progress.retryableFailed = retryBucket.length;
+          emit(true);
+          return;
+        }
+        // A batch failed to start for another reason — retryable; move on to the next chunk.
+        for (const c of chunk) {
+          recordFailure(c, "Couldn't start upload", false);
+        }
         emit(true);
-        break;
+        continue;
       }
-      // One batch failed for some other reason — record it and move on to the next chunk.
-      for (const c of chunk) {
-        recordError(c.file.name, "Couldn't start upload");
-      }
-      emit(true);
-      continue;
+      await pool(chunk, concurrency, (c) => uploadOne(c, batchId));
     }
-    await pool(chunk, concurrency, (c) => uploadOne(c.file, c.contentType, batchId));
   }
 
+  // Main pass, then at most one automatic retry sweep for the transient stragglers.
+  let pending = accepted;
+  for (let pass = 0; ; pass += 1) {
+    retryBucket = [];
+    progress.retryableFailed = 0;
+    progress.retrying = pass > 0;
+    emit(true);
+
+    await runPass(pending);
+
+    progress.retrying = false;
+    pending = retryBucket;
+    // Stop if nothing left, if a group-wide condition halted us, after the single auto-sweep, or if
+    // we're offline (let the manual Retry handle it once the connection is back).
+    if (
+      pending.length === 0 ||
+      progress.halted ||
+      pass >= 1 ||
+      (typeof navigator !== "undefined" && !navigator.onLine)
+    ) {
+      break;
+    }
+    await new Promise((r) => setTimeout(r, AUTO_SWEEP_DELAY_MS));
+  }
+
+  progress.retryableFailed = pending.length;
   emit(true);
-  return progress;
+  return { progress, retry: pending.map((p) => p.file) };
 }
