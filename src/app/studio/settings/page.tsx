@@ -6,7 +6,10 @@ import { Check, Loader2 } from "lucide-react";
 import { studioApi, ApiError } from "@/lib/studio/api";
 import { clearTokens } from "@/lib/studio/auth";
 import { GOOGLE_CLIENT_ID } from "@/lib/studio/config";
+// Plan section temporarily hidden from the settings tab (kept for when billing goes live).
+// import { PlanSection } from "@/components/studio/plan-section";
 import type { StudioUser } from "@/lib/studio/types";
+import { hasWatermarkEntitlement } from "@/lib/studio/watermark";
 import { GoogleSignInButton } from "@/components/studio/google-signin-button";
 import { WatermarkPreview } from "@/components/studio/watermark-preview";
 
@@ -27,6 +30,7 @@ export default function StudioSettingsPage() {
 
   const [linking, setLinking] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
+
 
   async function linkGoogle(idToken: string) {
     if (linking) {
@@ -122,9 +126,13 @@ export default function StudioSettingsPage() {
   const watermarkDirty =
     watermark.trim() !== (user?.watermarkText ?? "") ||
     opacity !== (user?.watermarkOpacity ?? DEFAULT_OPACITY);
-  // Hide watermark settings when the plan doesn't include it (only on an explicit false, so an older
-  // /me payload without entitlements still shows them).
-  const showWatermark = user?.entitlements?.features?.watermark !== false;
+  // The watermark section is host-only (you own an event group). We show it to EVERY host, even
+  // without the paid entitlement: saving the style (text/opacity) is allowed server-side and primes
+  // the preset, so an owner can set it up before upgrading. When the plan doesn't include
+  // watermarking we show an upsell note instead of hiding the whole section (which used to strand
+  // owners who couldn't find the setting). `!== false` safe-defaults an older /me payload to shown.
+  const isHostUser = user?.isHost !== false;
+  const watermarkEntitled = hasWatermarkEntitlement(user);
 
   return (
     <div className="max-w-2xl">
@@ -211,8 +219,11 @@ export default function StudioSettingsPage() {
         </section>
       ) : null}
 
+      {/* Plan (host-only) — temporarily hidden until billing goes live. */}
+      {/* {user && user.isHost !== false ? <PlanSection user={user} /> : null} */}
+
       {/* Watermark */}
-      {showWatermark ? (
+      {isHostUser ? (
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white">
         <div className="border-b border-slate-100 px-5 py-3">
           <h2 className="text-sm font-semibold text-slate-900">Watermark</h2>
@@ -221,6 +232,13 @@ export default function StudioSettingsPage() {
             until you give them access. Turn it on per event in the group&apos;s settings.
           </p>
         </div>
+        {!watermarkEntitled ? (
+          <p className="border-b border-slate-100 bg-amber-50 px-5 py-2.5 text-xs text-amber-700">
+            Watermarking events is included on <span className="font-semibold">Pro</span> and{" "}
+            <span className="font-semibold">Premium</span>. You can set your watermark style now — it
+            applies once you upgrade.
+          </p>
+        ) : null}
         <div className="space-y-4 p-5">
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Watermark text</label>

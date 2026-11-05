@@ -9,6 +9,7 @@ import { studioApi, ApiError } from "@/lib/studio/api";
 import { clearTokens } from "@/lib/studio/auth";
 import { joinLink } from "@/lib/studio/config";
 import { getCachedMe } from "@/lib/studio/profile";
+import { hasWatermarkEntitlement, isWatermarkOn } from "@/lib/studio/watermark";
 import type { StudioTrip } from "@/lib/studio/types";
 import { CopyButton } from "@/components/studio/copy-button";
 import { Dialog } from "@/components/studio/dialog";
@@ -40,15 +41,18 @@ function GroupDetail() {
   const [folderError, setFolderError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [guestOpen, setGuestOpen] = useState(false);
-  // Whether this owner's plan includes watermarking. Defaults to true (shown) and only hides when the
-  // entitlement is explicitly false, so an older /me payload never wrongly hides the controls.
+  // Plan entitlements for the owner. Default true (shown); only hide on an explicit false, so an
+  // older /me payload never wrongly hides controls.
   const [canWatermark, setCanWatermark] = useState(true);
+  const [canFolders, setCanFolders] = useState(true);
 
   useEffect(() => {
     let active = true;
     void getCachedMe()
       .then((user) => {
-        if (active) setCanWatermark(user.entitlements?.features?.watermark !== false);
+        if (!active) return;
+        setCanWatermark(hasWatermarkEntitlement(user));
+        setCanFolders(user.entitlements?.features?.folders !== false);
       })
       .catch(() => undefined);
     return () => {
@@ -153,14 +157,17 @@ function GroupDetail() {
             <h1 className="text-2xl font-semibold text-slate-900">{trip.title}</h1>
             <div className="flex flex-wrap items-center gap-2">
               {trip.inviteCode ? <CopyButton value={joinLink(trip.inviteCode)} label="Copy invite link" /> : null}
-              {trip.isOwner && canWatermark && trip.watermark?.enabled ? (
+              {/* Any owner can always open this to see who's joined. The panel shows the per-guest
+                  watermark access toggles only when the event is watermarked and the plan allows it
+                  (see showAccessControls below); otherwise it's a plain roster. */}
+              {trip.isOwner ? (
                 <button
                   type="button"
                   onClick={() => setGuestOpen(true)}
                   className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                 >
                   <Users className="h-4 w-4" />
-                  Guest access
+                  Guests
                 </button>
               ) : null}
               {trip.isOwner ? (
@@ -197,7 +204,7 @@ function GroupDetail() {
                 {f.name}
               </button>
             ))}
-            {trip.isOwner ? (
+            {trip.isOwner && canFolders ? (
               <button
                 type="button"
                 onClick={() => {
@@ -302,6 +309,7 @@ function GroupDetail() {
               onChange={setTrip}
               open={guestOpen}
               onClose={() => setGuestOpen(false)}
+              showAccessControls={isWatermarkOn(trip) && canWatermark}
             />
           ) : null}
         </div>

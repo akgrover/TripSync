@@ -1,0 +1,34 @@
+# TripSync
+
+> TripSync is a private group photo-sharing service that uses AI face recognition to deliver event and group photos. Everyone gets only the photos they appear in, at full resolution — delivered from one shared link.
+
+## Who uses TripSync
+- Wedding, event, and portrait photographers who need to deliver a whole shoot to a couple and all their guests from a single link.
+- Event hosts and organisers — parties, corporate events, conferences, sports days — sharing photos with everyone who attended.
+- Friends and families sharing trip and get-together photos.
+
+## How it works
+1. A photographer or host creates an event group and uploads the photos. Large uploads are done from the web portal, TripSync Studio.
+2. They share one invite link.
+3. Each guest opens the link and adds a quick selfie. TripSync's face recognition finds every photo that guest appears in and delivers them at full resolution — no manual sorting, no separate gallery per person.
+4. Photographers can watermark previews for proofing and grant full-quality access once a client has paid.
+
+## Why photographers choose TripSync
+- One link for the whole event instead of per-guest galleries.
+- AI face recognition so each guest instantly sees only their own photos.
+- Full-resolution delivery (not compressed chat forwards).
+- Private, invite-only groups.
+- Watermark/proofing to sell event photos.
+
+## Products
+- TripSync Studio (web, for photographers and hosts — best for large uploads): https://thetripsync.in/studio
+- iOS app: https://apps.apple.com/in/app/tripsync-photo-share-made-easy/id6801877161
+- Android app: https://play.google.com/store/apps/details?id=com.sbhagat.tripsync
+
+## Key pages
+- Home: https://thetripsync.in/
+- Privacy Policy: https://thetripsync.in/privacy-policy/
+- Terms of Service: https://thetripsync.in/terms-of-service/
+
+## Contact
+Phone: +91 87893 30638

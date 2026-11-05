@@ -5,7 +5,9 @@ import type {
   AdminOverview,
   AdminWindow,
   AuthResponse,
+  CheckoutInfo,
   PhotosPage,
+  PlanOffer,
   StudioTrip,
   StudioUser,
 } from "./types";
@@ -280,6 +282,13 @@ export const studioApi = {
       `/trips/${tripId}/upload-batches/${batchId}/photos/complete`,
       { method: "POST", body },
     ),
+
+  // Payments: list purchasable plans, start a checkout, then verify the provider's success callback.
+  getPlans: () => request<{ plans: PlanOffer[] }>("/billing/plans"),
+  createCheckout: (plan: string) =>
+    request<CheckoutInfo>("/billing/checkout", { method: "POST", body: { plan } }),
+  verifyPayment: (payload: Record<string, unknown>) =>
+    request<{ ok: boolean }>("/billing/verify", { method: "POST", body: payload }),
 
   // Admin portal (hidden). 404s for non-admins — the page treats that as "not authorized".
   // `window` scopes the upload/sign-up counts (1d/7d/30d/all); other columns are current state.

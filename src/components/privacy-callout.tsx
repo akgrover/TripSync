@@ -23,7 +23,7 @@ const points = [
 
 export function PrivacyCallout() {
   return (
-    <section id="privacy" className="mx-auto max-w-6xl px-6 py-20 md:py-24">
+    <section id="privacy" className="mx-auto max-w-6xl px-6 py-14 md:py-20">
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         whileInView={{ opacity: 1, y: 0 }}

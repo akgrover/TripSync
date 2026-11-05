@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState } from "react";
 import { AlertTriangle, FolderUp, Loader2, RefreshCw, UploadCloud, WifiOff } from "lucide-react";
 
@@ -190,7 +191,19 @@ export function UploadPanel({
           {progress.halted ? (
             <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>{progress.halted.message}</span>
+              <span>
+                {progress.halted.message}
+                {progress.halted.code === "EVENT_STORAGE_FULL" ||
+                progress.halted.code === "PHOTO_LIMIT_REACHED" ? (
+                  <>
+                    {" "}
+                    <Link href="/studio/settings" className="font-semibold underline">
+                      Upgrade your plan
+                    </Link>{" "}
+                    for more.
+                  </>
+                ) : null}
+              </span>
             </div>
           ) : null}
 

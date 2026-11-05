@@ -11,7 +11,7 @@ export function Footer() {
         <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center sm:justify-between">
           <Logo />
 
-          <div className="flex items-center gap-6 text-sm text-slate-500">
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-slate-500">
             <Link href="/privacy-policy" className="transition hover:text-slate-900">
               Privacy Policy
             </Link>
@@ -21,6 +21,9 @@ export function Footer() {
             <Link href="/community-guidelines" className="transition hover:text-slate-900">
               Community Guidelines
             </Link>
+            <a href="tel:+918789330638" className="transition hover:text-slate-900">
+              Contact
+            </a>
           </div>
 
           <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-200 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-700">
@@ -29,9 +32,15 @@ export function Footer() {
           </span>
         </div>
 
-        <p className="mt-8 text-center text-xs text-slate-400 sm:text-left">
-          &copy; {year} TripSync. All rights reserved.
-        </p>
+        <div className="mt-8 flex flex-col items-center gap-2 text-xs text-slate-400 sm:flex-row sm:justify-between">
+          <p>&copy; {year} TripSync. All rights reserved.</p>
+          <p>
+            Questions? Reach us at{" "}
+            <a href="tel:+918789330638" className="font-medium text-slate-500 transition hover:text-slate-900">
+              +91 87893 30638
+            </a>
+          </p>
+        </div>
       </div>
     </footer>
   );

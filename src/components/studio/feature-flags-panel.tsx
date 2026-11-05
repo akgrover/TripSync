@@ -9,7 +9,6 @@ import type { AdminFlag } from "@/lib/studio/types";
 // Human labels for the known feature keys. Unknown keys fall back to the raw key.
 const FEATURE_LABELS: Record<string, string> = {
   watermark: "Watermark / proofing",
-  webStudio: "Web Studio access",
   fullRes: "Full-resolution downloads",
   folders: "Folders",
 };

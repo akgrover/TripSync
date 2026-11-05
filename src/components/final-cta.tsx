@@ -12,7 +12,7 @@ export function FinalCta() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: "-80px" }}
         transition={{ duration: 0.6 }}
-        className="relative mx-auto max-w-3xl px-6 py-20 text-center md:py-24"
+        className="relative mx-auto max-w-3xl px-6 py-14 text-center md:py-20"
       >
         <h2 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
           Get everyone their photos.

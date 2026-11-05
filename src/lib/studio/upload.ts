@@ -296,14 +296,18 @@ export async function runUpload(
         // and keep the not-yet-attempted files as retryable so a tap can resume once it's fixed.
         if (
           err instanceof ApiError &&
-          (err.code === "EVENT_STORAGE_FULL" || err.code === "UPLOADS_RESTRICTED")
+          (err.code === "EVENT_STORAGE_FULL" ||
+            err.code === "PHOTO_LIMIT_REACHED" ||
+            err.code === "UPLOADS_RESTRICTED")
         ) {
           progress.halted = {
             code: err.code,
             message:
               err.code === "EVENT_STORAGE_FULL"
-                ? "This event is out of storage, so the remaining photos weren't uploaded. Add more storage, then tap Retry."
-                : "Only the host can add photos to this event, so the remaining photos weren't uploaded.",
+                ? "Storage limit reached, so the remaining photos weren't uploaded."
+                : err.code === "PHOTO_LIMIT_REACHED"
+                  ? "Photo limit reached for your plan, so the remaining photos weren't uploaded."
+                  : "Only the host can add photos to this event, so the remaining photos weren't uploaded.",
           };
           for (const c of pending.slice(i)) {
             retryBucket.push(c);

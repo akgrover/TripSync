@@ -30,6 +30,8 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
 
   const [auth, setAuth] = useState<"checking" | "in" | "out">("checking");
   const [userName, setUserName] = useState<string | null>(null);
+  // Plan label for the badge by the logo (shown only for paid plans).
+  const [planLabel, setPlanLabel] = useState<string | null>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time client-only auth read on mount
@@ -48,7 +50,10 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
     let active = true;
     void getCachedMe()
       .then((user) => {
-        if (active) setUserName(user.name);
+        if (!active) return;
+        setUserName(user.name);
+        // Show the plan badge only for a paid plan (free → no badge).
+        setPlanLabel(user.plan && user.plan !== "free" ? (user.planLabel ?? user.plan) : null);
       })
       .catch(() => undefined);
     return () => {
@@ -66,6 +71,7 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
     clearTokens();
     clearCachedMe();
     setUserName(null);
+    setPlanLabel(null);
     setAuth("out");
     router.replace("/studio/login");
   }
@@ -98,10 +104,15 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
           href="/studio"
           className="flex h-14 shrink-0 items-center gap-2 border-b border-slate-100 px-4 font-semibold text-slate-900"
         >
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-600 text-white">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-600 text-white">
             <Camera className="h-4 w-4" />
           </span>
-          TripSync Studio
+          <span className="truncate">TripSync Studio</span>
+          {planLabel ? (
+            <span className="shrink-0 rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-teal-700">
+              {planLabel}
+            </span>
+          ) : null}
         </Link>
         <nav className="flex-1 space-y-1 overflow-y-auto p-3">
           {NAV.map((item) => {

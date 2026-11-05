@@ -1,0 +1,7 @@
+# TripSync — allow all crawlers, including AI answer engines (GPTBot, OAI-SearchBot,
+# PerplexityBot, ClaudeBot, Google-Extended, etc.). Only the private web portal is excluded.
+User-agent: *
+Allow: /
+Disallow: /studio/
+
+Sitemap: https://thetripsync.in/sitemap.xml

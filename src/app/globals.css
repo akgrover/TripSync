@@ -10,6 +10,22 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Respect users who ask the OS to minimise motion: kill smooth-scroll and
+   neutralise the framer-motion / CSS animations across the marketing site. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 body {
   background: var(--color-background);
   color: var(--color-foreground);
@@ -40,14 +56,29 @@ body {
 .bg-glow {
   background-image: radial-gradient(
       60% 50% at 85% 0%,
-      rgba(20, 184, 166, 0.12) 0%,
+      rgba(20, 184, 166, 0.18) 0%,
       rgba(20, 184, 166, 0) 60%
     ),
     radial-gradient(
-      50% 40% at 10% 10%,
-      rgba(13, 148, 136, 0.08) 0%,
+      50% 45% at 8% 8%,
+      rgba(13, 148, 136, 0.12) 0%,
       rgba(13, 148, 136, 0) 60%
+    ),
+    radial-gradient(
+      45% 40% at 100% 100%,
+      rgba(45, 212, 191, 0.1) 0%,
+      rgba(45, 212, 191, 0) 55%
     );
+}
+
+/* Faint teal wash for the alternating slate sections, so the rhythm reads as
+   on-brand rather than flat grey. Pairs with `bg-slate-50/60`. */
+.bg-tint {
+  background-image: radial-gradient(
+    90% 70% at 50% -10%,
+    rgba(20, 184, 166, 0.07) 0%,
+    rgba(20, 184, 166, 0) 70%
+  );
 }
 
 /* Masonry columns for the photo grid demo */

@@ -1,6 +1,4 @@
-import { ArrowRight } from "lucide-react";
-
-import { APP_STORE_URL, PLAY_STORE_URL, STUDIO_URL } from "@/lib/links";
+import { APP_STORE_URL, PLAY_STORE_URL } from "@/lib/links";
 
 function AppleGlyph() {
   return (
@@ -36,20 +34,22 @@ function StoreButton({ href, glyph, top, bottom }: { href: string; glyph: React.
   );
 }
 
-// Shared homepage CTAs: the two app stores plus "Open Studio" (the web portal for
-// photographers/organizers).
+// Just the two app-store buttons — reused on the hero CTAs and the "choose your path" section.
+export function StoreButtons() {
+  return (
+    <>
+      <StoreButton href={APP_STORE_URL} glyph={<AppleGlyph />} top="Download on the" bottom="App Store" />
+      <StoreButton href={PLAY_STORE_URL} glyph={<PlayGlyph />} top="Get it on" bottom="Google Play" />
+    </>
+  );
+}
+
+// Shared homepage CTAs: the two app stores. "Open Studio" lives in the navbar (always visible) and
+// the "choose your path" host card, so it's intentionally not repeated here.
 export function CtaButtons({ align = "left" }: { align?: "left" | "center" }) {
   return (
     <div className={`flex flex-wrap items-center gap-3 ${align === "center" ? "justify-center" : ""}`}>
-      <StoreButton href={APP_STORE_URL} glyph={<AppleGlyph />} top="Download on the" bottom="App Store" />
-      <StoreButton href={PLAY_STORE_URL} glyph={<PlayGlyph />} top="Get it on" bottom="Google Play" />
-      <a
-        href={STUDIO_URL}
-        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
-      >
-        Open Studio
-        <ArrowRight className="h-4 w-4" />
-      </a>
+      <StoreButtons />
     </div>
   );
 }

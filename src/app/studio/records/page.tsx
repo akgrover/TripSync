@@ -287,7 +287,9 @@ export default function RecordsPage() {
                       <div className="min-w-0">
                         <p className="whitespace-nowrap text-slate-700">
                           {formatBytes(o.storageUsedBytes)}{" "}
-                          <span className="text-slate-400">/ {formatBytes(o.quotaBytes)}</span>
+                          <span className="text-slate-400">
+                            / {o.quotaBytes == null ? "∞" : formatBytes(o.quotaBytes)}
+                          </span>
                         </p>
                         <div className="mt-1 h-1.5 w-28 overflow-hidden rounded-full bg-slate-100">
                           <div
@@ -312,12 +314,12 @@ export default function RecordsPage() {
                   <td className="px-4 py-3">
                     <span
                       className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                        o.plan === "plus"
+                        o.plan !== "free"
                           ? "bg-teal-50 text-teal-700"
                           : "bg-slate-100 text-slate-500"
                       }`}
                     >
-                      {o.plan === "plus" ? "Plus" : "Free"}
+                      {planLabel(o.plan)}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums text-slate-700">
@@ -359,6 +361,27 @@ export default function RecordsPage() {
         signals upload-then-delete churn. Storage used is what the photographer is currently billed on.
       </p>
 
+      {/* Sign-in methods across ALL users (not just the owners in the table above). */}
+      {data.authMethods ? (
+        <div className="mt-8">
+          <h2 className="text-base font-semibold text-slate-900">Sign-in methods — all users</h2>
+          <p className="mt-0.5 text-sm text-slate-500">
+            How many accounts have each method connected. Someone who linked more than one is counted
+            in each, so these can add up to more than the total.
+          </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <SummaryCard
+              icon={<Users className="h-5 w-5" />}
+              value={formatCount(data.authMethods.totalUsers)}
+              label="Total users"
+            />
+            <SummaryCard value={formatCount(data.authMethods.phone)} label="Phone" />
+            <SummaryCard value={formatCount(data.authMethods.google)} label="Google" />
+            <SummaryCard value={formatCount(data.authMethods.apple)} label="Apple" />
+          </div>
+        </div>
+      ) : null}
+
       <Dialog
         open={detailRow !== null}
         onClose={() => setDetailRow(null)}
@@ -367,8 +390,8 @@ export default function RecordsPage() {
         {detailRow ? (
           <div className="space-y-4">
             <p className="text-xs text-slate-500">
-              Effective entitlements for this customer (plan {detailRow.plan === "plus" ? "Plus" : "Free"}
-              ). Amber = manually overridden from the plan default.
+              Effective entitlements for this customer (plan {planLabel(detailRow.plan)}). Amber =
+              manually overridden from the plan default.
             </p>
             <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
               {Object.entries(detailRow.features ?? {}).map(([key, on]) => {
@@ -410,6 +433,11 @@ export default function RecordsPage() {
 // How many features are currently enabled for a customer. Null-safe for older/partial responses.
 function enabledCount(features?: Record<string, boolean>): number {
   return Object.values(features ?? {}).filter(Boolean).length;
+}
+
+// Capitalized plan label for a plan id ('free' -> 'Free', 'pro' -> 'Pro').
+function planLabel(plan: string): string {
+  return plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : "Free";
 }
 
 function SummaryCard({

@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Loader2, RefreshCw, Trash2 } from "lucide-react";
+import { Check, Loader2, Lock, RefreshCw, Trash2 } from "lucide-react";
 
 import { ApiError, studioApi } from "@/lib/studio/api";
 import type { StudioTrip } from "@/lib/studio/types";
+import { isWatermarkOn } from "@/lib/studio/watermark";
 import { Dialog } from "./dialog";
 
 function errorMessage(err: unknown, fallback: string): string {
@@ -12,23 +13,35 @@ function errorMessage(err: unknown, fallback: string): string {
 }
 
 // A single on/off setting row. Add more by dropping another <ToggleRow> into the list below.
+// `locked` renders a disabled switch with a "Pro" tag — used when a feature needs a plan the owner
+// doesn't have, so the row stays visible (and explains itself) instead of disappearing.
 function ToggleRow({
   title,
   description,
   value,
   busy,
   onToggle,
+  locked = false,
 }: {
   title: string;
   description: string;
   value: boolean;
   busy: boolean;
   onToggle: (next: boolean) => void;
+  locked?: boolean;
 }) {
   return (
     <div className="flex items-start justify-between gap-4 py-4">
       <div>
-        <p className="text-sm font-medium text-slate-900">{title}</p>
+        <p className="flex items-center gap-1.5 text-sm font-medium text-slate-900">
+          {title}
+          {locked ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+              <Lock className="h-3 w-3" />
+              Pro
+            </span>
+          ) : null}
+        </p>
         <p className="mt-0.5 text-sm text-slate-500">{description}</p>
       </div>
       <button
@@ -36,7 +49,7 @@ function ToggleRow({
         role="switch"
         aria-checked={value}
         aria-label={title}
-        disabled={busy}
+        disabled={busy || locked}
         onClick={() => onToggle(!value)}
         className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition disabled:opacity-60 ${
           value ? "bg-teal-600" : "bg-slate-300"
@@ -78,7 +91,7 @@ export function GroupSettings({
   const isEvent = trip.storageMode === "single_payer";
   const everyoneSees = (trip.photoVisibility ?? "everyone") === "everyone";
   const membersCanUpload = trip.allowMemberUploads ?? false;
-  const watermarkOn = trip.watermark?.enabled ?? false;
+  const watermarkOn = isWatermarkOn(trip);
 
   async function toggleUploads(next: boolean) {
     setBusy("uploads");
@@ -174,16 +187,23 @@ export function GroupSettings({
           />
         ) : null}
 
-        {isEvent && (canWatermark || watermarkOn) ? (
+        {/* Always rendered for events so it can't vanish after you turn it off. When the plan
+            doesn't include watermarking and it's currently off, it's shown locked (Pro) rather than
+            hidden. If it's somehow on without the entitlement, we keep it interactive so you can
+            still turn it off. */}
+        {isEvent ? (
           <ToggleRow
             title="Watermark photos for guests"
             description={
               watermarkOn
                 ? "Guests see a watermarked preview until you give them access. You and members you've given access see the originals."
-                : "Everyone sees the original photos."
+                : canWatermark
+                  ? "Everyone sees the original photos."
+                  : "Watermarking is included on Pro & Premium. Upgrade to hide originals behind a watermark until guests get access."
             }
             value={watermarkOn}
             busy={busy === "watermark"}
+            locked={!canWatermark && !watermarkOn}
             onToggle={toggleWatermark}
           />
         ) : null}
@@ -201,7 +221,7 @@ export function GroupSettings({
         />
       </div>
 
-      {isEvent && canWatermark && trip.watermark?.enabled ? (
+      {isEvent && canWatermark && watermarkOn ? (
         <div className="flex items-center justify-between gap-4 border-t border-slate-100 px-5 py-4">
           <div>
             <p className="text-sm font-medium text-slate-900">Re-apply watermark</p>

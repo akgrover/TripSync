@@ -15,8 +15,8 @@ export function ProductDemo() {
     tab === "all" ? demoPhotos : demoPhotos.filter((p) => p.ofYou);
 
   return (
-    <section id="how-it-works" className="mx-auto max-w-6xl px-6 py-20 md:py-28">
-      <div className="mx-auto mb-12 max-w-2xl text-center">
+    <section id="demo" className="mx-auto max-w-6xl px-6 py-14 md:py-20">
+      <div className="mx-auto mb-10 max-w-2xl text-center">
         <span className="text-sm font-semibold uppercase tracking-wide text-teal-600">
           See it in action
         </span>
@@ -24,9 +24,8 @@ export function ProductDemo() {
           Your camera roll, automatically sorted by who&apos;s in the shot
         </h2>
         <p className="mt-4 text-lg text-slate-600">
-          Every upload runs through TripSync&apos;s on-device-first face
-          matching. One tap and you&apos;re only looking at photos you&apos;re
-          actually in.
+          Every upload runs through TripSync&apos;s AI face matching. One tap and you&apos;re only
+          looking at the photos you&apos;re actually in.
         </p>
       </div>
 
@@ -38,7 +37,7 @@ export function ProductDemo() {
           <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
           <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
           <div className="ml-3 flex-1 truncate rounded-md bg-white px-3 py-1 text-center text-xs text-slate-400 ring-1 ring-slate-200 sm:text-left">
-            app.tripsync.com/albums/cabo-trip-26
+            thetripsync.in/studio
           </div>
         </div>
 

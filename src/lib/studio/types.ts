@@ -15,6 +15,20 @@ export type StudioUser = {
   avatarUrl?: string | null;
   // Which sign-in methods are connected to this account (for the Settings "Sign-in methods" section).
   linkedMethods?: { phone: boolean; google: boolean; apple: boolean };
+  // True when the user owns at least one event group (a "host"). Gates host-only web UI like the
+  // watermark style settings, while profile/sign-in stay visible to everyone.
+  isHost?: boolean;
+  // EFFECTIVE plan id ('free' | 'essential' | 'pro' | 'premium'; reverts to 'free' once lapsed),
+  // display label, renewal/expiry date, and whether a paid plan has lapsed.
+  plan?: string | null;
+  planLabel?: string;
+  planRenewsAt?: string | null;
+  planExpired?: boolean;
+  photoCap?: number | null; // the current plan's active-photo cap (null = unlimited)
+  // Current active storage usage and the plan's quota, in bytes (for the Plan usage meter).
+  // storageQuotaBytes is null for an unlimited plan (the meter then hides the number).
+  storageUsedBytes?: number;
+  storageQuotaBytes?: number | null;
   // Computed feature entitlements (plan → override → global flag). Render UI from this.
   entitlements?: StudioEntitlements;
   // True until the user has picked a real display name (phone sign-ups start on a placeholder).
@@ -82,6 +96,30 @@ export type PhotosPage = {
   total: number;
 };
 
+// A purchasable plan from GET /billing/plans — drives the upgrade UI dynamically from the catalog.
+export type PlanOffer = {
+  id: string;
+  label: string;
+  amountPaise: number;
+  currency: string;
+  durationDays: number;
+  features: Record<string, boolean>;
+  storageBytes: number | null; // null = unlimited (hide the value)
+  maxPhotos: number | null; // null = unlimited
+  retentionDays: number | null;
+};
+
+// What the API returns to open a payment provider's checkout widget (provider-agnostic shape).
+export type CheckoutInfo = {
+  provider: string;
+  keyId: string;
+  orderId: string;
+  amountPaise: number;
+  currency: string;
+  plan: string;
+  label: string;
+};
+
 // Admin portal (hidden /studio/records, gated server-side by the ADMIN_PHONES allowlist). One row
 // per photographer who owns an Event group, plus platform totals. Mirrors the API's AdminOverview.
 export type AdminWindow = "1d" | "7d" | "30d" | "all";
@@ -92,9 +130,9 @@ export type AdminOwnerRow = {
   groupCount: number; // total event groups owned (current state, not windowed)
   uploadedPhotos: number; // active photos uploaded within the window ("all" = all active photos)
   storageUsedBytes: number; // current state
-  quotaBytes: number;
+  quotaBytes: number | null; // null = unlimited
   quotaPct: number;
-  plan: "free" | "plus";
+  plan: string; // 'free' | 'essential' | 'pro' | 'premium'
   guestsReached: number; // total unique guests (current state)
   watermarkEvents: number;
   lifetimePhotosUploaded: number;
@@ -105,6 +143,14 @@ export type AdminOwnerRow = {
   // Optional so an older API response (or a missing field) can't crash the table.
   features?: Record<string, boolean>; // effective entitlements for this customer
   overrides?: Record<string, boolean>; // admin-set per-user overrides (subset of features)
+};
+
+// All-users sign-in-method counts (overlap when a user links more than one method).
+export type AdminAuthMethods = {
+  totalUsers: number;
+  phone: number;
+  google: number;
+  apple: number;
 };
 
 export type AdminOverview = {
@@ -118,5 +164,6 @@ export type AdminOverview = {
     totalGuestsReached: number;
     newOwnersInWindow: number; // photographers who signed up within the window
   };
+  authMethods?: AdminAuthMethods; // optional so an older API response can't crash the page
   owners: AdminOwnerRow[];
 };

@@ -2,14 +2,14 @@
 
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { ScanFace } from "lucide-react";
+import { ScanFace, Check } from "lucide-react";
 import { CtaButtons } from "./cta-buttons";
 import { unsplash, groupMembers } from "@/lib/photos";
 
 export function Hero() {
   return (
     <section id="top" className="bg-glow relative overflow-hidden">
-      <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-16 px-6 pb-20 pt-16 md:pb-28 md:pt-24 lg:grid-cols-2">
+      <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-16 px-6 pb-14 pt-10 md:pb-20 md:pt-16 lg:grid-cols-2">
         {/* Left: copy + CTAs */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
@@ -41,9 +41,33 @@ export function Hero() {
 
           <p className="mt-4 max-w-xl text-sm leading-relaxed text-slate-500">
             Running an event? Upload the whole shoot from{" "}
-            <span className="font-medium text-slate-700">TripSync Studio</span> on the web and share
-            one link — guests join and find their photos automatically.
+            <a
+              href="/studio"
+              className="whitespace-nowrap font-semibold text-teal-700 underline-offset-2 hover:underline"
+            >
+              TripSync Studio
+            </a>{" "}
+            on the web and share one link — guests join and find their photos
+            automatically.{" "}
+            <a
+              href="#pricing"
+              className="whitespace-nowrap font-semibold text-teal-700 underline-offset-2 hover:underline"
+            >
+              See plans&nbsp;→
+            </a>
           </p>
+
+          {/* Factual trust strip — no invented stats. */}
+          <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-600">
+            {["AI face recognition", "Full-resolution downloads", "Private & invite-only"].map(
+              (point) => (
+                <li key={point} className="inline-flex items-center gap-1.5">
+                  <Check className="h-4 w-4 text-teal-600" />
+                  {point}
+                </li>
+              ),
+            )}
+          </ul>
         </motion.div>
 
         {/* Right: photo collage */}
@@ -122,7 +146,7 @@ export function Hero() {
                 </div>
               ))}
             </div>
-            <span className="ml-2 mr-1 text-xs font-medium text-slate-500">
+            <span className="ml-2 mr-1 whitespace-nowrap text-xs font-medium text-slate-500">
               +12 in this trip
             </span>
           </div>
