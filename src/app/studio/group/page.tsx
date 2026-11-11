@@ -7,11 +7,10 @@ import { ArrowLeft, Folder, FolderPlus, Loader2, Lock, Settings, Users } from "l
 
 import { studioApi, ApiError } from "@/lib/studio/api";
 import { clearTokens } from "@/lib/studio/auth";
-import { joinLink } from "@/lib/studio/config";
 import { getCachedMe } from "@/lib/studio/profile";
 import { hasWatermarkEntitlement, isWatermarkOn } from "@/lib/studio/watermark";
 import type { StudioTrip } from "@/lib/studio/types";
-import { CopyButton } from "@/components/studio/copy-button";
+import { GroupShare } from "@/components/studio/group-share";
 import { Dialog } from "@/components/studio/dialog";
 import { SlideOver } from "@/components/studio/slide-over";
 import { GroupSettings } from "@/components/studio/group-settings";
@@ -156,7 +155,7 @@ function GroupDetail() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h1 className="text-2xl font-semibold text-slate-900">{trip.title}</h1>
             <div className="flex flex-wrap items-center gap-2">
-              {trip.inviteCode ? <CopyButton value={joinLink(trip.inviteCode)} label="Copy invite link" /> : null}
+              <GroupShare trip={trip} />
               {/* Any owner can always open this to see who's joined. The panel shows the per-guest
                   watermark access toggles only when the event is watermarked and the plan allows it
                   (see showAccessControls below); otherwise it's a plain roster. */}

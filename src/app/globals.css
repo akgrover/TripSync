@@ -81,6 +81,32 @@ body {
   );
 }
 
+/* Printable A5 QR poster: when printing, hide the whole app and show only the poster at true A5
+   (the on-screen preview scales it down with a transform, which we reset here). */
+@media print {
+  @page {
+    size: A5 portrait;
+    margin: 0;
+  }
+  body * {
+    visibility: hidden !important;
+  }
+  #qr-poster,
+  #qr-poster * {
+    visibility: visible !important;
+  }
+  #qr-poster {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    transform: none !important;
+    width: 148mm !important;
+    height: 210mm !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+}
+
 /* Masonry columns for the photo grid demo */
 .masonry {
   column-count: 2;

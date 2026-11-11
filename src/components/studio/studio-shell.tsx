@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Camera, Home, LogOut, Settings } from "lucide-react";
+import { Camera, Home, LogOut, Settings, User } from "lucide-react";
 
 import { clearTokens, getAccessToken } from "@/lib/studio/auth";
 import { clearCachedMe, getCachedMe } from "@/lib/studio/profile";
 
 const NAV = [
   { href: "/studio", label: "Home", icon: Home },
+  { href: "/studio/profile", label: "Profile", icon: User },
   { href: "/studio/settings", label: "Settings", icon: Settings },
 ];
 
@@ -91,9 +92,13 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Settings owns /studio/settings*; Home owns everything else under /studio (incl. group pages).
+  // Profile/Settings own their own subtrees; Home owns everything else under /studio (incl. groups).
   const current = (pathname ?? "").replace(/\/+$/, "");
-  const activeHref = current.startsWith("/studio/settings") ? "/studio/settings" : "/studio";
+  const activeHref = current.startsWith("/studio/settings")
+    ? "/studio/settings"
+    : current.startsWith("/studio/profile")
+      ? "/studio/profile"
+      : "/studio";
 
   return (
     <div className="flex min-h-dvh bg-slate-50">

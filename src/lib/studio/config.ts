@@ -15,3 +15,10 @@ export const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
 export function joinLink(code: string): string {
   return `https://api.thetripsync.in/join/${code}`;
 }
+
+// Same invite link, tagged so the server shows the full landing page (store buttons + code) instead
+// of bouncing straight to the store. Used for the printed QR poster, where the guest needs to see the
+// code after installing. The app still intercepts the link when installed (the tag is ignored there).
+export function qrJoinLink(code: string): string {
+  return `${joinLink(code)}?src=qr`;
+}

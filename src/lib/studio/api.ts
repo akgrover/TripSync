@@ -172,6 +172,34 @@ export const studioApi = {
   // Set the display name (used for first-time sign-ups, same as the mobile app's onboarding).
   updateName: (name: string) =>
     request<{ user: StudioUser }>("/me", { method: "PATCH", body: { name } }),
+  // Set the photographer company/studio name ('' or null clears it).
+  setCompanyName: (companyName: string | null) =>
+    request<{ user: StudioUser }>("/me", { method: "PATCH", body: { companyName } }),
+  // Face profile (reference selfie). init → PUT bytes to S3 → complete (indexes the face; the API
+  // returns 422 UNPROCESSABLE if it isn't exactly one clear face, so the caller can prompt a retake).
+  initReferenceSelfie: (fileName: string, contentType: string) =>
+    request<{ uploadUrl: string; objectKey: string }>("/me/reference-selfie/init", {
+      method: "POST",
+      body: { fileName, contentType },
+    }),
+  completeReferenceSelfie: (objectKey: string) =>
+    request<{ user: StudioUser }>("/me/reference-selfie/complete", {
+      method: "POST",
+      body: { objectKey },
+    }),
+  // Photographer branding images (kind = "logo" | "cover"): init → PUT → complete, or delete.
+  initBranding: (kind: "logo" | "cover", fileName: string, contentType: string) =>
+    request<{ uploadUrl: string; objectKey: string }>(`/me/branding/${kind}/init`, {
+      method: "POST",
+      body: { fileName, contentType },
+    }),
+  completeBranding: (kind: "logo" | "cover", objectKey: string) =>
+    request<{ user: StudioUser }>(`/me/branding/${kind}/complete`, {
+      method: "POST",
+      body: { objectKey },
+    }),
+  deleteBranding: (kind: "logo" | "cover") =>
+    request<{ user: StudioUser }>(`/me/branding/${kind}`, { method: "DELETE" }),
   // Connect a Google account to the signed-in user (links the provider; 409 on conflicts).
   linkGoogle: (identityToken: string) =>
     request<{ user: StudioUser }>("/me/link/oauth/google", {

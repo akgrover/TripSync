@@ -38,6 +38,12 @@ export type StudioUser = {
   watermarkText?: string;
   // Watermark text opacity (0.1–0.6); null when unset (uses the default).
   watermarkOpacity?: number | null;
+  // True once the user has a face profile (indexed reference selfie). Drives the Profile prompt.
+  hasReferenceSelfie?: boolean;
+  // Photographer branding (optional). URLs are signed read URLs for preview; empty/null = unset.
+  companyName?: string;
+  logoUrl?: string | null;
+  coverUrl?: string | null;
 };
 
 export type AuthResponse = {

@@ -6,7 +6,9 @@ import { ArrowLeft, Loader2, Phone, User } from "lucide-react";
 import { studioApi, ApiError } from "@/lib/studio/api";
 import { setTokens } from "@/lib/studio/auth";
 import { GOOGLE_CLIENT_ID } from "@/lib/studio/config";
+import type { StudioUser } from "@/lib/studio/types";
 import { GoogleSignInButton } from "@/components/studio/google-signin-button";
+import { SelfieCapture } from "@/components/studio/selfie-capture";
 
 // India-only, like the mobile app: the user types a 10-digit number and we send +91<digits>.
 function toE164(local: string): string {
@@ -20,6 +22,8 @@ export default function StudioLoginPage() {
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
+  // The just-created user, so the optional first-time selfie step has someone to attach it to.
+  const [signupUser, setSignupUser] = useState<StudioUser | null>(null);
   const [busy, setBusy] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [savingName, setSavingName] = useState(false);
@@ -73,6 +77,7 @@ export default function StudioLoginPage() {
       // First-time sign-ups have no display name yet (same as the app's onboarding) — ask for one
       // before entering the portal. We're now authenticated, so the PATCH /me call below will work.
       if (res.user.needsName) {
+        setSignupUser(res.user);
         setStep("name");
         setVerifying(false);
         return;
@@ -131,6 +136,7 @@ export default function StudioLoginPage() {
       setTokens(res);
       // Google provides a name, so needsName is normally false — but handle it for completeness.
       if (res.user.needsName) {
+        setSignupUser(res.user);
         setStep("name");
         setBusy(false);
         return;
@@ -273,6 +279,15 @@ export default function StudioLoginPage() {
             autoFocus
             className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
           />
+
+          {/* Optional face profile — same idea as the app's onboarding; can be skipped and done later. */}
+          <div className="mt-4 rounded-xl border border-slate-200 p-3">
+            <p className="mb-2 text-sm font-medium text-slate-700">
+              Add a selfie <span className="font-normal text-slate-400">— optional</span>
+            </p>
+            <SelfieCapture user={signupUser} onUpdated={setSignupUser} />
+          </div>
+
           <button
             type="button"
             onClick={() => void saveName()}
