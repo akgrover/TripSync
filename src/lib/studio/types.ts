@@ -130,7 +130,7 @@ export type AdminOwnerRow = {
   groupCount: number; // total event groups owned (current state, not windowed)
   uploadedPhotos: number; // active photos uploaded within the window ("all" = all active photos)
   storageUsedBytes: number; // current state
-  quotaBytes: number | null; // null = unlimited
+  quotaBytes: number | null; // null = unlimited — effective storage limit (plan or override)
   quotaPct: number;
   plan: string; // 'free' | 'essential' | 'pro' | 'premium'
   guestsReached: number; // total unique guests (current state)
@@ -143,6 +143,20 @@ export type AdminOwnerRow = {
   // Optional so an older API response (or a missing field) can't crash the table.
   features?: Record<string, boolean>; // effective entitlements for this customer
   overrides?: Record<string, boolean>; // admin-set per-user overrides (subset of features)
+  photoCap?: number | null; // effective active-photo limit (null = unlimited)
+  // Raw per-user limit overrides (null = none set, using the plan/free default).
+  storageQuotaOverrideBytes?: number | null;
+  maxPhotosOverride?: number | null;
+};
+
+// What POST /admin/limits returns after setting/clearing a customer's limit overrides.
+export type AdminLimitsResult = {
+  id: string;
+  name: string;
+  quotaBytes: number | null;
+  photoCap: number | null;
+  storageQuotaOverrideBytes: number | null;
+  maxPhotosOverride: number | null;
 };
 
 // All-users sign-in-method counts (overlap when a user links more than one method).

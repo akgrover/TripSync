@@ -413,6 +413,39 @@ export default function RecordsPage() {
                 );
               })}
             </ul>
+
+            {/* Effective limits (storage + photo cap), with an amber tag when manually overridden. */}
+            <div>
+              <p className="mb-1.5 text-xs font-medium text-slate-500">Limits</p>
+              <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
+                <li className="flex items-center justify-between px-3 py-2 text-sm">
+                  <span className="text-slate-700">
+                    Storage
+                    {detailRow.storageQuotaOverrideBytes != null ? (
+                      <span className="ml-2 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                        override
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="font-medium text-slate-900">
+                    {detailRow.quotaBytes == null ? "∞" : formatBytes(detailRow.quotaBytes)}
+                  </span>
+                </li>
+                <li className="flex items-center justify-between px-3 py-2 text-sm">
+                  <span className="text-slate-700">
+                    Photos
+                    {detailRow.maxPhotosOverride != null ? (
+                      <span className="ml-2 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                        override
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="font-medium text-slate-900">
+                    {detailRow.photoCap == null ? "∞" : detailRow.photoCap.toLocaleString()}
+                  </span>
+                </li>
+              </ul>
+            </div>
             {/* Raw object for quick copy / unambiguous reading. */}
             <pre className="max-h-48 overflow-auto rounded-xl bg-slate-900 p-3 text-xs leading-relaxed text-slate-100">
               {JSON.stringify(

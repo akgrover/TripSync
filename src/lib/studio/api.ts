@@ -2,6 +2,7 @@ import { API_BASE_URL } from "./config";
 import { clearTokens, getAccessToken, getRefreshToken, setTokens } from "./auth";
 import type {
   AdminFlag,
+  AdminLimitsResult,
   AdminOverview,
   AdminWindow,
   AuthResponse,
@@ -307,6 +308,20 @@ export const studioApi = {
     value: boolean | null;
   }) =>
     request<{ id: string; name: string; entitlements: Record<string, boolean> }>("/admin/overrides", {
+      method: "POST",
+      body,
+    }),
+  // Per-customer limit override: raise storage and/or photo cap without changing their plan. A
+  // number sets the limit, null clears it (back to the plan/free default), omit to leave unchanged.
+  // storageQuotaBytes is in bytes, maxPhotosOverride is a photo count. Identify by userId/phone/email.
+  setUserLimits: (body: {
+    userId?: string;
+    phone?: string;
+    email?: string;
+    storageQuotaBytes?: number | null;
+    maxPhotosOverride?: number | null;
+  }) =>
+    request<AdminLimitsResult>("/admin/limits", {
       method: "POST",
       body,
     }),
