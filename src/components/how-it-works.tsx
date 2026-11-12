@@ -14,20 +14,20 @@ const steps = [
     icon: ImagePlus,
     title: "Add the photos",
     description:
-      "Everyone drops their camera roll into the group — or a photographer uploads the full shoot at once. Originals stay full quality.",
+      "Everyone drops their camera roll into the group - or a photographer uploads the full shoot at once. Originals stay full quality.",
   },
   {
     icon: ScanFace,
     title: "Everyone gets theirs",
     description:
-      "Face matching sorts the album automatically, so each person sees the photos they appear in — ready to view and download.",
+      "Face matching sorts the album automatically, so each person sees the photos they appear in - ready to view and download.",
   },
 ];
 
 export function HowItWorks() {
   return (
-    <section id="how-it-works" className="mx-auto max-w-6xl px-6 py-14 md:py-20">
-      <div className="mx-auto mb-10 max-w-2xl text-center">
+    <section id="how-it-works" className="mx-auto max-w-6xl px-6 py-12 md:py-16">
+      <div className="mx-auto mb-8 max-w-2xl text-center">
         <span className="text-sm font-semibold uppercase tracking-wide text-teal-600">
           How it works
         </span>

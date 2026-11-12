@@ -10,7 +10,7 @@ import { StoreButtons } from "./cta-buttons";
 // Hosts/photographers go to the web Studio (built for big uploads); everyone else gets the app.
 export function ChoosePath() {
   return (
-    <section className="bg-tint relative bg-slate-50/60 py-14 md:py-20">
+    <section className="bg-tint relative bg-slate-50/60 py-12 md:py-16">
       <div className="mx-auto max-w-6xl px-6">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
@@ -28,7 +28,7 @@ export function ChoosePath() {
         </motion.div>
 
         <div className="mt-12 grid gap-6 md:grid-cols-2">
-          {/* Path A — photographers / event hosts → web Studio */}
+          {/* Path A - photographers / event hosts → web Studio */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -47,7 +47,7 @@ export function ChoosePath() {
             </h3>
             <p className="mt-2 text-slate-600">
               Upload the full shoot and TripSync sorts it by face. Share one link, and every guest
-              opens it to find just their photos — in full quality.
+              opens it to find just their photos - in full quality.
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
               {["Weddings", "Parties", "Corporate events"].map((tag) => (
@@ -68,12 +68,12 @@ export function ChoosePath() {
                 <ArrowRight className="h-4 w-4" />
               </a>
               <p className="mt-3 text-xs text-slate-500">
-                Opens in your browser — best for uploading lots of photos.
+                Opens in your browser - best for uploading lots of photos.
               </p>
             </div>
           </motion.div>
 
-          {/* Path B — friends / guests → the app */}
+          {/* Path B - friends / guests → the app */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -92,7 +92,7 @@ export function ChoosePath() {
             </h3>
             <p className="mt-2 text-slate-600">
               Start a shared album for a trip or get-together, or open your invite to grab the photos
-              you&apos;re in — all from the app.
+              you&apos;re in - all from the app.
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
               {["Trips", "Outings", "Get-togethers"].map((tag) => (

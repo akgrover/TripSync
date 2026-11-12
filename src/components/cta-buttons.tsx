@@ -34,7 +34,7 @@ function StoreButton({ href, glyph, top, bottom }: { href: string; glyph: React.
   );
 }
 
-// Just the two app-store buttons — reused on the hero CTAs and the "choose your path" section.
+// Just the two app-store buttons - reused on the hero CTAs and the "choose your path" section.
 export function StoreButtons() {
   return (
     <>

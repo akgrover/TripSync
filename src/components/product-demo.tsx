@@ -15,8 +15,8 @@ export function ProductDemo() {
     tab === "all" ? demoPhotos : demoPhotos.filter((p) => p.ofYou);
 
   return (
-    <section id="demo" className="mx-auto max-w-6xl px-6 py-14 md:py-20">
-      <div className="mx-auto mb-10 max-w-2xl text-center">
+    <section id="demo" className="mx-auto max-w-6xl px-6 py-12 md:py-16">
+      <div className="mx-auto mb-8 max-w-2xl text-center">
         <span className="text-sm font-semibold uppercase tracking-wide text-teal-600">
           See it in action
         </span>
@@ -171,7 +171,7 @@ export function ProductDemo() {
               className="mt-4 flex items-center justify-center gap-2 text-xs text-slate-500"
             >
               <ScanFace className="h-3.5 w-3.5 text-teal-600" />
-              Showing a preview &mdash; all 32 matches sync to your phone
+              Showing a preview - all 32 matches sync to your phone
               instantly.
             </motion.div>
           )}

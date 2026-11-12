@@ -18,7 +18,7 @@ const rows = [
     problemSub: "Chat apps crush your camera roll down to a fraction of its size.",
     solutionIcon: HardDriveIcon,
     solution: "Full resolution, never compressed",
-    solutionSub: "Upload once at original quality — guests download the real thing.",
+    solutionSub: "Upload once at original quality - guests download the real thing.",
   },
   {
     problemIcon: Search,
@@ -32,8 +32,8 @@ const rows = [
 
 export function ProblemSolution() {
   return (
-    <section id="features" className="mx-auto max-w-6xl px-6 py-14 md:py-20">
-      <div className="mx-auto mb-10 max-w-2xl text-center">
+    <section id="features" className="mx-auto max-w-6xl px-6 py-12 md:py-16">
+      <div className="mx-auto mb-8 max-w-2xl text-center">
         <span className="text-sm font-semibold uppercase tracking-wide text-teal-600">
           Why TripSync
         </span>

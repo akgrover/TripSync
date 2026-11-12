@@ -6,7 +6,7 @@ import { FAQS } from "@/lib/faq";
 // engines) and work without JS. The same content is emitted as FAQPage JSON-LD in the layout.
 export function Faq() {
   return (
-    <section id="faq" className="py-14 md:py-20">
+    <section id="faq" className="py-12 md:py-16">
       <div className="mx-auto max-w-3xl px-6">
         <h2 className="text-center text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
           Frequently asked questions

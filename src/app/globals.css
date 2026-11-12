@@ -52,6 +52,14 @@ body {
   background: #94a3b8;
 }
 
+/* Subtle brand-tinted dot texture for the page background, so large light areas don't read as empty.
+   Faint teal dots on a 24px grid; solid sections (cards, dark CTA) sit on top and break it up. */
+.bg-dots {
+  background-color: #ffffff;
+  background-image: radial-gradient(rgba(13, 148, 136, 0.16) 1.6px, transparent 1.7px);
+  background-size: 22px 22px;
+}
+
 /* Soft radial glow used behind hero / CTA sections */
 .bg-glow {
   background-image: radial-gradient(

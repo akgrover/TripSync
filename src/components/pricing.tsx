@@ -6,7 +6,7 @@ import { Check, Sparkles } from "lucide-react";
 import { STUDIO_URL } from "@/lib/links";
 
 // Marketing pricing. Hand-curated (kept in sync with the API plan catalog in
-// tripsync-api/src/config/plans.ts) so the content is in the static HTML — no loading flicker, and
+// tripsync-api/src/config/plans.ts) so the content is in the static HTML - no loading flicker, and
 // it's readable by search / answer engines. Checkout happens in Studio after sign-in.
 type Tier = {
   name: string;
@@ -17,6 +17,18 @@ type Tier = {
 };
 
 const TIERS: Tier[] = [
+  {
+    name: "Free",
+    price: "Free",
+    tagline: "Try it, no card needed",
+    features: [
+      "AI face-recognition delivery",
+      "Full-resolution photos",
+      "Upload from the web Studio",
+      "5 GB storage",
+      "Up to 1,000 photos",
+    ],
+  },
   {
     name: "Essential",
     price: "₹2,999",
@@ -57,7 +69,7 @@ const TIERS: Tier[] = [
 
 export function Pricing() {
   return (
-    <section id="pricing" className="bg-tint bg-slate-50/60 py-14 md:py-20">
+    <section id="pricing" className="bg-tint bg-slate-50/60 py-12 md:py-16">
       <div className="mx-auto max-w-6xl px-6">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
@@ -70,12 +82,12 @@ export function Pricing() {
             Plans for photographers &amp; event hosts
           </h2>
           <p className="mt-4 text-lg text-slate-600">
-            One link, every guest finds their own photos. Pick the plan that fits your volume — pay
+            One link, every guest finds their own photos. Pick the plan that fits your volume - pay
             yearly, cancel anytime.
           </p>
         </motion.div>
 
-        <div className="mt-12 grid items-start gap-6 md:grid-cols-3">
+        <div className="mt-10 grid items-start gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {TIERS.map((tier, i) => (
             <motion.div
               key={tier.name}
@@ -101,7 +113,9 @@ export function Pricing() {
                 <span className="text-4xl font-extrabold tracking-tight text-slate-900">
                   {tier.price}
                 </span>
-                <span className="text-sm text-slate-500">/ year</span>
+                {tier.price.startsWith("₹") ? (
+                  <span className="text-sm text-slate-500">/ year</span>
+                ) : null}
               </div>
 
               <ul className="mt-6 space-y-3 text-sm text-slate-600">
@@ -121,14 +135,14 @@ export function Pricing() {
                     : "border border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
                 }`}
               >
-                Get started
+                {tier.price === "Free" ? "Start free" : "Get started"}
               </a>
             </motion.div>
           ))}
         </div>
 
         <p className="mt-8 text-center text-sm text-slate-500">
-          Just sharing with friends? The TripSync app is free — create a group and get your photos at
+          Just sharing with friends? The TripSync app is free - create a group and get your photos at
           no cost. Plan prices exclude GST.
         </p>
       </div>

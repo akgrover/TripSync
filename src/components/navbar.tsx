@@ -5,8 +5,8 @@ import { Menu, X } from "lucide-react";
 import { Logo } from "./logo";
 
 const links = [
+  { label: "For photographers", href: "#for-photographers" },
   { label: "How it works", href: "#how-it-works" },
-  { label: "Features", href: "#features" },
   { label: "Pricing", href: "#pricing" },
   { label: "Privacy", href: "#privacy" },
 ];
