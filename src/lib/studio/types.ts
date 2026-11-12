@@ -52,6 +52,12 @@ export type AuthResponse = {
   refreshToken: string;
 };
 
+// Public (unauthenticated) branding for a shared event, from GET /public/events/:code.
+export type PublicEvent = {
+  eventTitle: string;
+  photographer: { companyName: string; logoUrl: string | null; coverUrl: string | null };
+};
+
 export type StudioFolder = {
   id: string;
   name: string;

@@ -9,6 +9,7 @@ import type {
   CheckoutInfo,
   PhotosPage,
   PlanOffer,
+  PublicEvent,
   StudioTrip,
   StudioUser,
 } from "./types";
@@ -168,6 +169,10 @@ export const studioApi = {
     }),
 
   // Authenticated.
+  // Public branding for a shared event (no auth needed; safe to call signed-out).
+  getPublicEvent: (code: string) =>
+    request<{ event: PublicEvent }>(`/public/events/${encodeURIComponent(code)}`, { auth: false }),
+
   getMe: () => request<{ user: StudioUser }>("/me"),
   // Set the display name (used for first-time sign-ups, same as the mobile app's onboarding).
   updateName: (name: string) =>
