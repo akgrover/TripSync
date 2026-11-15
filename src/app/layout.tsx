@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+import { GoogleAnalytics } from "@/components/google-analytics";
 import { FAQS } from "@/lib/faq";
 import { APP_STORE_URL, PLAY_STORE_URL } from "@/lib/links";
 
@@ -104,6 +105,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(STRUCTURED_DATA) }}
         />
         {children}
+        <GoogleAnalytics />
       </body>
     </html>
   );

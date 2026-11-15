@@ -79,8 +79,9 @@ export function GroupSettings({
   // When false (owner's plan doesn't include watermarking), the watermark controls are hidden.
   canWatermark?: boolean;
 }) {
-  const [busy, setBusy] = useState<null | "uploads" | "visibility" | "watermark" | "reapply">(null);
+  const [busy, setBusy] = useState<null | "uploads" | "visibility" | "watermark" | "reapply" | "rematch">(null);
   const [reapplied, setReapplied] = useState(false);
+  const [rematched, setRematched] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -128,6 +129,24 @@ export function GroupSettings({
       onChange(res.trip);
     } catch (err) {
       setError(errorMessage(err, "Couldn't save that change. Please try again."));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function rematchFaces() {
+    if (busy) {
+      return;
+    }
+    setBusy("rematch");
+    setError(null);
+    try {
+      await studioApi.rematchFaces(trip.id);
+      setRematched(true);
+      // Processing runs in the background; let them trigger it again after a moment.
+      setTimeout(() => setRematched(false), 4000);
+    } catch (err) {
+      setError(errorMessage(err, "Couldn't start rematching faces. Please try again."));
     } finally {
       setBusy(null);
     }
@@ -247,6 +266,32 @@ export function GroupSettings({
           </button>
         </div>
       ) : null}
+
+      {/* Owner-only (this whole panel renders for the owner): recompute face matches for every photo. */}
+      <div className="flex items-center justify-between gap-4 border-t border-slate-100 px-5 py-4">
+        <div>
+          <p className="text-sm font-medium text-slate-900">Rematch faces</p>
+          <p className="mt-0.5 text-sm text-slate-500">
+            Re-run face recognition on every photo for all members - fixes anyone missing from their
+            photos. Runs in the background and can take a few minutes.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void rematchFaces()}
+          disabled={busy === "rematch"}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+        >
+          {busy === "rematch" ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : rematched ? (
+            <Check className="h-4 w-4" />
+          ) : (
+            <RefreshCw className="h-4 w-4" />
+          )}
+          {rematched ? "Queued" : "Rematch"}
+        </button>
+      </div>
 
       <div className="flex items-center justify-between gap-4 border-t border-slate-100 px-5 py-4">
         <div>

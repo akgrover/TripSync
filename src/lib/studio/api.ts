@@ -255,6 +255,9 @@ export const studioApi = {
   // Owner-only: re-generate every photo's watermark with the current style (after changing it).
   regenerateWatermark: (tripId: string) =>
     request<{ ok: boolean }>(`/trips/${tripId}/watermark/regenerate`, { method: "POST" }),
+  // Owner-only: re-run face recognition on every photo in the group, for all members.
+  rematchFaces: (tripId: string) =>
+    request<{ ok: boolean; queued: number }>(`/trips/${tripId}/rematch-faces`, { method: "POST" }),
   // Owner-only: create a logical folder for organising photos; returns the refreshed trip.
   createFolder: (tripId: string, name: string) =>
     request<{ trip: StudioTrip }>(`/trips/${tripId}/folders`, { method: "POST", body: { name } }),
