@@ -4,6 +4,7 @@ import type {
   AdminFlag,
   AdminLimitsResult,
   AdminOverview,
+  AdminOwnerGroup,
   AdminWindow,
   AuthResponse,
   CheckoutInfo,
@@ -331,6 +332,10 @@ export const studioApi = {
   // `window` scopes the upload/sign-up counts (1d/7d/30d/all); other columns are current state.
   getAdminOverview: (window: AdminWindow = "all") =>
     request<AdminOverview>(`/admin/overview?window=${window}`),
+  // The event groups owned by one photographer (names + member counts). Lazily fetched when an admin
+  // opens the "Groups" popup for a row, so the overview stays lightweight.
+  getAdminOwnerGroups: (ownerId: string) =>
+    request<{ groups: AdminOwnerGroup[] }>(`/admin/owners/${ownerId}/groups`),
   getAdminFlags: () => request<{ flags: AdminFlag[] }>("/admin/flags"),
   setAdminFlag: (key: string, enabled: boolean) =>
     request<{ flags: AdminFlag[] }>("/admin/flags", { method: "POST", body: { key, enabled } }),

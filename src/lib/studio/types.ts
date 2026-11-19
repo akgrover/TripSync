@@ -161,6 +161,17 @@ export type AdminOwnerRow = {
   maxPhotosOverride?: number | null;
 };
 
+// One event group owned by a photographer — the per-owner breakdown behind the "Groups" popup.
+// Lazily fetched from GET /admin/owners/:ownerId/groups when an admin opens the popup.
+export type AdminOwnerGroup = {
+  id: string;
+  title: string;
+  memberCount: number; // total members, including the owner/host
+  guestCount: number; // of those, non-owner members
+  watermark: boolean;
+  createdAt: string;
+};
+
 // What POST /admin/limits returns after setting/clearing a customer's limit overrides.
 export type AdminLimitsResult = {
   id: string;
