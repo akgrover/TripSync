@@ -342,7 +342,7 @@ export default function RecordsPage() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold text-slate-900">
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-slate-900">
             <ShieldCheck className="h-6 w-6 text-teal-600" />
             Records
           </h1>
@@ -408,7 +408,7 @@ export default function RecordsPage() {
       </p>
 
       {/* Owners table */}
-      <div className="mt-8 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+      <div className="shadow-card mt-8 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
         <table className="w-full min-w-[920px] text-left text-sm">
           <thead className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
             <tr>
@@ -1017,14 +1017,14 @@ function SummaryCard({
   label: string;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3.5">
+    <div className="shadow-card flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-4">
       {icon ? (
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-600">
+        <span className="bg-brand flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-sm">
           {icon}
         </span>
       ) : null}
       <div className="min-w-0">
-        <p className="text-xl font-semibold leading-tight text-slate-900">{value}</p>
+        <p className="text-2xl font-semibold leading-tight tracking-tight text-slate-900">{value}</p>
         <p className="truncate text-sm text-slate-500">{label}</p>
       </div>
     </div>

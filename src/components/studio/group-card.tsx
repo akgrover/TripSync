@@ -15,26 +15,28 @@ export function GroupCard({ trip, onOpen }: { trip: StudioTrip; onOpen: () => vo
   }`;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+    <div className="shadow-card lift overflow-hidden rounded-2xl border border-slate-200 bg-white">
       <button
         type="button"
         onClick={onOpen}
         className="group block w-full text-left"
         aria-label={`Open ${trip.title}`}
       >
-        <div className="relative aspect-[16/9] w-full bg-slate-100">
+        <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-100">
           {trip.coverUrl ? (
             // eslint-disable-next-line @next/next/no-img-element -- static export, images unoptimized
             <img
               src={trip.coverUrl}
               alt=""
-              className="h-full w-full object-cover transition group-hover:opacity-95"
+              className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-slate-300">
+            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 text-slate-300">
               <ImageOff className="h-8 w-8" />
             </div>
           )}
+          {/* Soft top scrim so the badges stay legible over bright photos. */}
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-black/20 to-transparent" />
           {/* Badges grouped top-left as one set. Both use the same dark translucent pill; the
               pay-to-unlock status carries a small colored dot instead of a competing fill, so a
               photographer sees at a glance which events are still locked. */}

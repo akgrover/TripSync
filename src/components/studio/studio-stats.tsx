@@ -23,12 +23,12 @@ function StatCard({
   label: string;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3.5">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-600">
+    <div className="shadow-card flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-4">
+      <span className="bg-brand flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white shadow-sm">
         {icon}
       </span>
       <div className="min-w-0">
-        <p className="text-xl font-semibold leading-tight text-slate-900">{value}</p>
+        <p className="text-2xl font-semibold leading-tight tracking-tight text-slate-900">{value}</p>
         <p className="truncate text-sm text-slate-500">{label}</p>
       </div>
     </div>

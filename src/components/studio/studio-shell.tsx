@@ -79,14 +79,14 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
 
   if (isLoginRoute) {
     return (
-      <main className="flex min-h-dvh items-center justify-center bg-slate-50 px-4">{children}</main>
+      <main className="bg-studio flex min-h-dvh items-center justify-center px-4">{children}</main>
     );
   }
 
   // Still resolving, or unauthenticated (while the redirect above runs) — neutral placeholder.
   if (auth !== "in") {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-slate-50 text-slate-400">
+      <div className="bg-studio flex min-h-dvh items-center justify-center text-slate-400">
         Loading…
       </div>
     );
@@ -101,7 +101,7 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
       : "/studio";
 
   return (
-    <div className="flex min-h-dvh bg-slate-50">
+    <div className="bg-studio flex min-h-dvh">
       {/* Desktop left sidebar — sticky full-height so the footer (identity + sign out) stays pinned
           while the main content scrolls. */}
       <aside className="sticky top-0 hidden h-dvh w-56 shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
@@ -109,10 +109,10 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
           href="/studio"
           className="flex h-14 shrink-0 items-center gap-2 border-b border-slate-100 px-4 font-semibold text-slate-900"
         >
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-600 text-white">
+          <span className="bg-brand flex h-7 w-7 shrink-0 items-center justify-center rounded-xl text-white shadow-sm">
             <Camera className="h-4 w-4" />
           </span>
-          <span className="truncate">TripSync Studio</span>
+          <span className="truncate tracking-tight">TripSync Studio</span>
           {planLabel ? (
             <span className="shrink-0 rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-teal-700">
               {planLabel}
@@ -139,7 +139,7 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
         <div className="shrink-0 border-t border-slate-100 p-3">
           {userName ? (
             <div className="mb-1 flex items-center gap-2.5 px-3 py-2">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-teal-100 text-xs font-semibold text-teal-700">
+              <span className="bg-brand flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white shadow-sm">
                 {(userName.trim()[0] ?? "?").toUpperCase()}
               </span>
               <div className="min-w-0">
@@ -163,7 +163,7 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
         {/* Mobile top bar (sidebar is hidden below md) */}
         <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-200 bg-white/90 px-4 py-2.5 backdrop-blur md:hidden">
           <Link href="/studio" className="flex items-center gap-2 font-semibold text-slate-900">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-600 text-white">
+            <span className="bg-brand flex h-7 w-7 items-center justify-center rounded-xl text-white shadow-sm">
               <Camera className="h-4 w-4" />
             </span>
             Studio

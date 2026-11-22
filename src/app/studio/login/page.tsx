@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, Loader2, Phone, User } from "lucide-react";
+import { ArrowLeft, Camera, Loader2 } from "lucide-react";
 
 import { studioApi, ApiError } from "@/lib/studio/api";
 import { setTokens } from "@/lib/studio/auth";
@@ -160,23 +160,21 @@ export default function StudioLoginPage() {
   }
 
   return (
-    <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="mb-5 flex items-center gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-600 text-white">
-          {step === "name" ? <User className="h-4 w-4" /> : <Phone className="h-4 w-4" />}
+    <div className="animate-rise w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-900/5">
+      <div className="mb-6 text-center">
+        <span className="bg-brand mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-md">
+          <Camera className="h-6 w-6" />
         </span>
-        <div>
-          <h1 className="text-base font-semibold text-slate-900">
-            {step === "name" ? "What's your name?" : "Sign in to TripSync Studio"}
-          </h1>
-          <p className="text-xs text-slate-500">
-            {step === "phone"
-              ? "We'll text you a code"
-              : step === "code"
-                ? `Code sent to +91 ${phoneDigits}`
-                : "This is how guests will see you"}
-          </p>
-        </div>
+        <h1 className="text-lg font-semibold tracking-tight text-slate-900">
+          {step === "name" ? "What's your name?" : "TripSync Studio"}
+        </h1>
+        <p className="mt-1 text-sm text-slate-500">
+          {step === "phone"
+            ? "Sign in — we'll text you a verification code"
+            : step === "code"
+              ? `Code sent to +91 ${phoneDigits}`
+              : "This is how guests will see you"}
+        </p>
       </div>
 
       {step === "phone" ? (

@@ -103,7 +103,7 @@ export default function StudioSettingsPage() {
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-2xl font-semibold text-slate-900">Settings</h1>
+      <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Settings</h1>
       <p className="mt-1 text-slate-500">
         How your photos are presented. Your name, face profile, and branding live in{" "}
         <span className="font-medium text-slate-700">Profile</span>.

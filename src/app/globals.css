@@ -115,6 +115,62 @@ body {
   }
 }
 
+/* ---- Studio portal visual language (bolder refresh) ---------------------------------------- */
+
+/* Brand gradient — teal→emerald. Used for the logo mark, stat-icon chips, and brand moments. */
+.bg-brand {
+  background-image: linear-gradient(135deg, #2dd4bf 0%, #14b8a6 50%, #0d9488 100%);
+}
+/* Brand text gradient (for the wordmark). */
+.text-brand-gradient {
+  background-image: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Soft studio backdrop: off-white with a faint teal glow top-right, so large areas don't read flat. */
+.bg-studio {
+  background-color: #f8fafc;
+  background-image: radial-gradient(70% 55% at 100% 0%, rgba(20, 184, 166, 0.07) 0%, rgba(20, 184, 166, 0) 60%);
+}
+
+/* Consistent soft elevation for cards, and a lift on interactive ones. */
+.shadow-card {
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 2px 6px rgba(15, 23, 42, 0.05);
+}
+.lift {
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+.lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 30px -10px rgba(15, 23, 42, 0.18);
+}
+
+/* Skeleton shimmer for loading states (neutralised under prefers-reduced-motion above). */
+@keyframes ts-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: #e2e8f0;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+  animation: ts-shimmer 1.6s infinite;
+}
+
 /* Gentle entrance for the public pay card + a pop for the unlock confirmation. The reduced-motion
    media query above already neutralises these for users who ask for less motion. */
 @keyframes ts-rise {

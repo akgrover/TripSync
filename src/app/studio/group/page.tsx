@@ -154,7 +154,7 @@ function GroupDetail() {
       ) : (
         <div className="mt-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h1 className="text-2xl font-semibold text-slate-900">{trip.title}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{trip.title}</h1>
             <div className="flex flex-wrap items-center gap-2">
               <GroupShare trip={trip} />
               {/* Any owner can always open this to see who's joined. The panel shows the per-guest
