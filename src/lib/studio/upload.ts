@@ -56,15 +56,127 @@ function contentTypeFor(file: File): string {
   return EXT_TO_TYPE[ext] ?? "";
 }
 
-async function readImageSize(file: File): Promise<{ width: number; height: number } | null> {
+type ImageSize = { width: number; height: number };
+
+function errText(err: unknown): string {
+  if (err instanceof Error) {
+    return err.message || err.name || "error";
+  }
+  return String(err);
+}
+
+// Dimensions via an <img> element. Far more tolerant than createImageBitmap: it only needs to parse
+// the image header (naturalWidth/Height are set on load) and the browser's image pipeline can handle
+// large or unusually-encoded files that the bitmap decoder rejects. Resolves null on a zero-size
+// decode, rejects (with a reason) if the element errors.
+function readSizeViaImage(file: File): Promise<ImageSize | null> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const size = { width: img.naturalWidth, height: img.naturalHeight };
+      URL.revokeObjectURL(url);
+      resolve(size.width > 0 && size.height > 0 ? size : null);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("img decode failed"));
+    };
+    img.src = url;
+  });
+}
+
+// Dimensions straight from the JPEG Start-Of-Frame (SOFn) marker — no pixel decode at all, so it
+// works for valid JPEGs the browser won't render (memory pressure, odd encodings). Reads only the
+// head of the file; SOF sits before the image data. Returns null for anything that isn't a JPEG we
+// can walk.
+async function readJpegSize(file: File): Promise<ImageSize | null> {
+  const buf = new Uint8Array(await file.slice(0, 256 * 1024).arrayBuffer());
+  if (buf.length < 4 || buf[0] !== 0xff || buf[1] !== 0xd8) {
+    return null; // no SOI → not a JPEG
+  }
+  let offset = 2;
+  while (offset + 1 < buf.length) {
+    if (buf[offset] !== 0xff) {
+      offset += 1;
+      continue;
+    }
+    const marker = buf[offset + 1];
+    offset += 2;
+    if (marker === 0xff) {
+      // Fill byte; re-align on the next 0xff.
+      offset -= 1;
+      continue;
+    }
+    // Standalone markers (no length payload): SOI, EOI, RSTn, TEM.
+    if (marker === 0xd8 || marker === 0xd9 || (marker >= 0xd0 && marker <= 0xd7) || marker === 0x01) {
+      continue;
+    }
+    if (offset + 1 >= buf.length) {
+      break;
+    }
+    const len = (buf[offset] << 8) | buf[offset + 1];
+    if (len < 2) {
+      return null;
+    }
+    // SOF markers (C0–CF) carry dimensions, except C4 (DHT), C8 (JPG), CC (DAC).
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+      if (offset + 6 >= buf.length) {
+        break;
+      }
+      const height = (buf[offset + 3] << 8) | buf[offset + 4];
+      const width = (buf[offset + 5] << 8) | buf[offset + 6];
+      return width > 0 && height > 0 ? { width, height } : null;
+    }
+    offset += len; // skip this segment's payload
+  }
+  return null;
+}
+
+// Reads an image's pixel dimensions (the API requires width/height). Primary path is
+// createImageBitmap — fast, but surprisingly fragile: full-resolution camera JPEGs can make it throw
+// (memory pressure, huge dimensions, CMYK/12-bit encodings) even though the file is perfectly valid.
+// So we fall back to an <img> element, then to parsing the JPEG header directly. Returns the size, or
+// an { error } describing why every method failed (also logged to the console for support triage).
+async function readImageSize(file: File): Promise<ImageSize | { error: string }> {
+  const attempts: string[] = [];
+
   try {
     const bitmap = await createImageBitmap(file);
     const size = { width: bitmap.width, height: bitmap.height };
     bitmap.close();
-    return size.width > 0 && size.height > 0 ? size : null;
-  } catch {
-    return null;
+    if (size.width > 0 && size.height > 0) {
+      return size;
+    }
+    attempts.push("createImageBitmap: zero dimensions");
+  } catch (err) {
+    attempts.push(`createImageBitmap: ${errText(err)}`);
   }
+
+  try {
+    const size = await readSizeViaImage(file);
+    if (size) {
+      return size;
+    }
+    attempts.push("img: zero dimensions");
+  } catch (err) {
+    attempts.push(`img: ${errText(err)}`);
+  }
+
+  try {
+    const size = await readJpegSize(file);
+    if (size) {
+      return size;
+    }
+  } catch (err) {
+    attempts.push(`header: ${errText(err)}`);
+  }
+
+  const error = attempts.join("; ");
+  console.warn(
+    `[upload] couldn't read dimensions for "${file.name}" (type=${file.type || "none"}, ${file.size} bytes): ${error}`,
+  );
+  return { error };
 }
 
 async function sha256Hex(file: File): Promise<string | undefined> {
@@ -232,12 +344,14 @@ export async function runUpload(
     progress.inFlight += 1;
     emit();
     try {
-      const size = await readImageSize(file);
-      if (!size) {
-        // A decode failure is treated as terminal (unsupported/damaged) — a retry won't help.
+      const sizeResult = await readImageSize(file);
+      if ("error" in sizeResult) {
+        // Every dimension-reading method failed — treated as terminal (unsupported/damaged); a retry
+        // won't help. The real cause is logged to the console (see readImageSize) for triage.
         recordFailure(item, "Couldn't read image", true);
         return;
       }
+      const size = sizeResult;
       const contentHash = await sha256Hex(file);
       const init = await withRetry(
         () =>
