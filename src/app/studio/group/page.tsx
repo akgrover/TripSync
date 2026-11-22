@@ -137,7 +137,7 @@ function GroupDetail() {
     <div>
       <Link
         href="/studio"
-        className="inline-flex items-center gap-1.5 text-sm text-slate-500 transition hover:text-slate-900"
+        className="shadow-card inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
       >
         <ArrowLeft className="h-4 w-4" />
         All groups
@@ -225,22 +225,20 @@ function GroupDetail() {
 
           {trip.canUpload ? (
             <div className="mt-6">
-              <p className="mb-2 text-sm text-slate-500">
-                {currentFolder ? (
-                  <>
-                    New photos are added to{" "}
-                    <span className="font-medium text-slate-700">{currentFolder.name}</span>.
-                  </>
-                ) : (
-                  "New photos are added to the group."
-                )}
-              </p>
-              {/* Keyed by folder so switching folders resets the panel's progress/selection. */}
+              {currentFolder ? (
+                <p className="mb-2 text-sm text-slate-500">
+                  New photos are added to{" "}
+                  <span className="font-medium text-slate-700">{currentFolder.name}</span>.
+                </p>
+              ) : null}
+              {/* Keyed by folder so switching folders resets the panel's progress/selection. Compact
+                  (slim) once the group already has photos, so the grid stays high on the page. */}
               <UploadPanel
                 key={currentFolder?.id ?? "all"}
                 tripId={trip.id}
                 folderId={currentFolder?.id}
                 onUploaded={handleUploaded}
+                compact={(trip.photoCount ?? 0) > 0}
               />
             </div>
           ) : (
@@ -255,6 +253,7 @@ function GroupDetail() {
               folder={currentFolder?.id}
               reload={reload}
               canDelete={trip.isOwner ?? false}
+              uploadAvailable={(trip.canUpload ?? false) && !currentFolder}
             />
           </div>
 

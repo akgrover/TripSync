@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Camera, Home, LogOut, Settings, User } from "lucide-react";
+import { Camera, Home, LifeBuoy, LogOut, Settings, User } from "lucide-react";
 
 import { clearTokens, getAccessToken } from "@/lib/studio/auth";
 import { clearCachedMe, getCachedMe } from "@/lib/studio/profile";
@@ -148,6 +148,16 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           ) : null}
+          <a
+            href="tel:+918789330638"
+            className="mb-1 flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+          >
+            <LifeBuoy className="h-4 w-4 shrink-0" />
+            <span className="min-w-0 leading-tight">
+              Support
+              <span className="block text-xs font-normal text-slate-400">+91 87893 30638</span>
+            </span>
+          </a>
           <button
             type="button"
             onClick={signOut}

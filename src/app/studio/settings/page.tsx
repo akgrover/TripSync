@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Loader2 } from "lucide-react";
+import { Stamp } from "lucide-react";
 
 import { studioApi, ApiError } from "@/lib/studio/api";
+import { SaveButton } from "@/components/studio/save-button";
 import { clearTokens } from "@/lib/studio/auth";
 // Plan section temporarily hidden from the settings tab (kept for when billing goes live).
 // import { PlanSection } from "@/components/studio/plan-section";
@@ -102,7 +103,7 @@ export default function StudioSettingsPage() {
   const isRevShare = user?.eventBillingMode === "rev_share";
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-4xl">
       <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Settings</h1>
       <p className="mt-1 text-slate-500">
         How your photos are presented. Your name, face profile, and branding live in{" "}
@@ -111,14 +112,19 @@ export default function StudioSettingsPage() {
 
       {/* Watermark */}
       {isHostUser ? (
-        <section className="mt-8 rounded-2xl border border-slate-200 bg-white">
-          <div className="border-b border-slate-100 px-5 py-3">
-            <h2 className="text-sm font-semibold text-slate-900">Watermark</h2>
-            <p className="mt-0.5 text-sm text-slate-500">
-              {isRevShare
-                ? "On your pay-to-unlock events, guests see this text tiled across every photo until the event is paid. It's applied automatically — you don't switch it on per event."
-                : "When you turn on watermarking for an event, guests see this text tiled across each photo until you give them access. Turn it on per event in the group's settings."}
-            </p>
+        <section className="shadow-card mt-8 rounded-2xl border border-slate-200 bg-white">
+          <div className="flex items-start gap-3 border-b border-slate-100 px-5 py-4">
+            <span className="bg-brand flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-sm">
+              <Stamp className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold text-slate-900">Watermark</h2>
+              <p className="mt-0.5 text-sm text-slate-500">
+                {isRevShare
+                  ? "On your pay-to-unlock events, guests see this text tiled across every photo until the event is paid. It's applied automatically — you don't switch it on per event."
+                  : "When you turn on watermarking for an event, guests see this text tiled across each photo until you give them access. Turn it on per event in the group's settings."}
+              </p>
+            </div>
           </div>
           {!watermarkEntitled && !isRevShare ? (
             <p className="border-b border-slate-100 bg-amber-50 px-5 py-2.5 text-xs text-amber-700">
@@ -127,68 +133,81 @@ export default function StudioSettingsPage() {
               applies once you upgrade.
             </p>
           ) : null}
-          <div className="space-y-4 p-5">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Watermark text</label>
-              <input
-                value={watermark}
-                onChange={(e) => {
-                  setWatermarkSaved(false);
-                  setWatermark(e.target.value);
-                }}
-                placeholder={watermarkPlaceholder}
-                maxLength={40}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
-              />
-              <p className="mt-1.5 text-xs text-slate-400">
-                Leave empty to use your name ({watermarkPlaceholder}).
-              </p>
-            </div>
-
-            <div>
-              <div className="mb-1 flex items-center justify-between">
-                <label className="text-sm font-medium text-slate-700">Opacity</label>
-                <span className="text-xs text-slate-500">{Math.round(opacity * 100)}%</span>
+          <div className="grid grid-cols-1 gap-6 p-5 md:grid-cols-2">
+            {/* Controls */}
+            <div className="space-y-5">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Watermark text</label>
+                <input
+                  value={watermark}
+                  onChange={(e) => {
+                    setWatermarkSaved(false);
+                    setWatermark(e.target.value);
+                  }}
+                  placeholder={watermarkPlaceholder}
+                  maxLength={40}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                />
+                <p className="mt-1.5 text-xs text-slate-400">
+                  Leave empty to use your name ({watermarkPlaceholder}).
+                </p>
               </div>
-              <input
-                type="range"
-                min={0.1}
-                max={0.6}
-                step={0.05}
-                value={opacity}
-                onChange={(e) => {
-                  setWatermarkSaved(false);
-                  setOpacity(Number(e.target.value));
-                }}
-                className="w-full accent-teal-600"
-              />
-              <p className="mt-1.5 text-xs text-slate-400">
-                Higher is harder to crop out; lower shows the photo more clearly.
-              </p>
+
+              <div>
+                <div className="mb-1 flex items-center justify-between">
+                  <label className="text-sm font-medium text-slate-700">Opacity</label>
+                  <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-medium tabular-nums text-slate-600">
+                    {Math.round(opacity * 100)}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={0.1}
+                  max={0.6}
+                  step={0.05}
+                  value={opacity}
+                  onChange={(e) => {
+                    setWatermarkSaved(false);
+                    setOpacity(Number(e.target.value));
+                  }}
+                  className="w-full accent-teal-600"
+                />
+                <p className="mt-1.5 text-xs text-slate-400">
+                  Higher is harder to crop out; lower shows the photo more clearly.
+                </p>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-3">
+                  <SaveButton
+                    dirty={watermarkDirty}
+                    saving={savingWatermark}
+                    saved={watermarkSaved}
+                    onClick={() => void saveWatermark()}
+                    label="Save watermark"
+                  />
+                </div>
+                <p className="mt-2 text-xs text-slate-400">
+                  {isRevShare
+                    ? "New photos use this right away."
+                    : "New photos use this right away. To re-apply to an event’s existing photos, use “Re-apply watermark” in that group’s settings."}
+                </p>
+                {watermarkError ? <p className="mt-2 text-sm text-red-600">{watermarkError}</p> : null}
+              </div>
             </div>
 
+            {/* Live preview */}
             <div>
               <p className="mb-1.5 text-sm font-medium text-slate-700">Preview</p>
-              <WatermarkPreview text={watermark.trim() || watermarkPlaceholder} opacity={opacity} />
+              <div className="shadow-card overflow-hidden rounded-xl ring-1 ring-slate-200">
+                <WatermarkPreview
+                  text={watermark.trim() || watermarkPlaceholder}
+                  opacity={opacity}
+                  imageUrl={user?.coverUrl}
+                />
+              </div>
+              <p className="mt-2 text-xs text-slate-400">A sample photo — your watermark, tiled.</p>
             </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => void saveWatermark()}
-                disabled={savingWatermark || !watermarkDirty}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
-              >
-                {savingWatermark ? <Loader2 className="h-4 w-4 animate-spin" /> : watermarkSaved ? <Check className="h-4 w-4" /> : null}
-                Save watermark
-              </button>
-              <p className="text-xs text-slate-400">
-                {isRevShare
-                  ? "New photos use this right away."
-                  : "New photos use this right away. To re-apply to an event’s existing photos, use “Re-apply watermark” in that group’s settings."}
-              </p>
-            </div>
-            {watermarkError ? <p className="text-sm text-red-600">{watermarkError}</p> : null}
           </div>
         </section>
       ) : (

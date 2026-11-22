@@ -11,10 +11,15 @@ import type { StudioUser } from "@/lib/studio/types";
 import { GoogleSignInButton } from "@/components/studio/google-signin-button";
 import { SelfieCapture } from "@/components/studio/selfie-capture";
 import { BrandingImage } from "@/components/studio/branding-image";
+import { BrandingPreview } from "@/components/studio/branding-preview";
+import { SaveButton } from "@/components/studio/save-button";
+
+type ProfileTab = "personal" | "studio";
 
 export default function StudioProfilePage() {
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [user, setUser] = useState<StudioUser | null>(null);
+  const [tab, setTab] = useState<ProfileTab>("personal");
 
   const [name, setName] = useState("");
   const [savingName, setSavingName] = useState(false);
@@ -161,187 +166,215 @@ export default function StudioProfilePage() {
   const phoneDirty = studioPhone.trim() !== (user?.studioPhone ?? "");
 
   return (
-    <div className="max-w-2xl">
-      <h1 className="text-2xl font-semibold text-slate-900">Profile</h1>
-      <p className="mt-1 text-slate-500">Your account, face profile, and photographer branding.</p>
+    <div className="max-w-5xl">
+      <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Profile</h1>
+      <p className="mt-1 text-slate-500">Your account, face profile, and studio branding.</p>
 
-      {/* Account */}
-      <section className="mt-8 rounded-2xl border border-slate-200 bg-white">
-        <div className="border-b border-slate-100 px-5 py-3">
-          <h2 className="text-sm font-semibold text-slate-900">Account</h2>
-        </div>
-        <div className="space-y-4 p-5">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Name</label>
-            <div className="flex gap-2">
-              <input
-                value={name}
-                onChange={(e) => {
-                  setNameSaved(false);
-                  setName(e.target.value);
-                }}
-                maxLength={80}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
-              />
-              <button
-                type="button"
-                onClick={() => void saveName()}
-                disabled={name.trim().length < 2 || savingName || name.trim() === user?.name}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-teal-600 px-4 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
-              >
-                {savingName ? <Loader2 className="h-4 w-4 animate-spin" /> : nameSaved ? <Check className="h-4 w-4" /> : null}
-                Save
-              </button>
-            </div>
-          </div>
-          {user?.phone ? (
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Phone</label>
-              <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-sm text-slate-500">{user.phone}</p>
-            </div>
-          ) : null}
-        </div>
-      </section>
+      {/* Personal vs Studio — your identity and account on one tab, guest-facing branding on the other. */}
+      <div className="shadow-card mt-6 inline-flex rounded-xl border border-slate-200 bg-white p-1">
+        {([
+          { id: "personal", label: "Personal" },
+          { id: "studio", label: "Studio" },
+        ] as const).map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setTab(t.id)}
+            aria-pressed={tab === t.id}
+            className={`rounded-lg px-4 py-1.5 text-sm font-medium transition ${
+              tab === t.id ? "bg-brand text-white shadow-sm" : "text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
-      {/* Face profile */}
-      <section className="mt-6 rounded-2xl border border-slate-200 bg-white">
-        <div className="border-b border-slate-100 px-5 py-3">
-          <h2 className="text-sm font-semibold text-slate-900">Face profile</h2>
-          <p className="mt-0.5 text-sm text-slate-500">
-            A selfie TripSync matches against event photos to find the ones you&apos;re in. Stored
-            privately and only used for matching.
-          </p>
-        </div>
-        <div className="p-5">
-          <SelfieCapture user={user} onUpdated={applyUser} />
-        </div>
-      </section>
-
-      {/* Photographer profile */}
-      <section className="mt-6 rounded-2xl border border-slate-200 bg-white">
-        <div className="border-b border-slate-100 px-5 py-3">
-          <h2 className="text-sm font-semibold text-slate-900">Photographer profile</h2>
-          <p className="mt-0.5 text-sm text-slate-500">
-            Optional. Used to brand the pages and posters you share with guests.
-          </p>
-        </div>
-        <div className="space-y-5 p-5">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Company / studio name</label>
-            <div className="flex gap-2">
-              <input
-                value={company}
-                onChange={(e) => {
-                  setCompanySaved(false);
-                  setCompany(e.target.value);
-                }}
-                maxLength={60}
-                placeholder="e.g. Lumina Studio"
-                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
-              />
-              <button
-                type="button"
-                onClick={() => void saveCompany()}
-                disabled={savingCompany || !companyDirty}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-teal-600 px-4 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
-              >
-                {savingCompany ? <Loader2 className="h-4 w-4 animate-spin" /> : companySaved ? <Check className="h-4 w-4" /> : null}
-                Save
-              </button>
+      {tab === "personal" ? (
+        <div className="max-w-2xl">
+          {/* Account */}
+          <section className="shadow-card mt-6 rounded-2xl border border-slate-200 bg-white">
+            <div className="border-b border-slate-100 px-5 py-3">
+              <h2 className="text-sm font-semibold text-slate-900">Account</h2>
             </div>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Studio phone</label>
-            <div className="flex gap-2">
-              <input
-                value={studioPhone}
-                onChange={(e) => {
-                  setPhoneSaved(false);
-                  setPhoneError(null);
-                  setStudioPhone(e.target.value);
-                }}
-                type="tel"
-                inputMode="tel"
-                maxLength={20}
-                placeholder="+91 98765 43210"
-                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
-              />
-              <button
-                type="button"
-                onClick={() => void saveStudioPhone()}
-                disabled={savingPhone || !phoneDirty}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-teal-600 px-4 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
-              >
-                {savingPhone ? <Loader2 className="h-4 w-4 animate-spin" /> : phoneSaved ? <Check className="h-4 w-4" /> : null}
-                Save
-              </button>
+            <div className="space-y-4 p-5">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Name</label>
+                <div className="flex gap-2">
+                  <input
+                    value={name}
+                    onChange={(e) => {
+                      setNameSaved(false);
+                      setName(e.target.value);
+                    }}
+                    maxLength={80}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                  />
+                  <SaveButton
+                    dirty={name.trim().length >= 2 && name.trim() !== (user?.name ?? "")}
+                    saving={savingName}
+                    saved={nameSaved}
+                    onClick={() => void saveName()}
+                  />
+                </div>
+              </div>
+              {user?.phone ? (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Phone</label>
+                  <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-sm text-slate-500">{user.phone}</p>
+                </div>
+              ) : null}
             </div>
-            {phoneError ? (
-              <p className="mt-1 text-xs text-red-600">{phoneError}</p>
-            ) : (
-              <p className="mt-1 text-xs text-slate-500">
-                Shown to guests so they can contact you. Not your login number.
+          </section>
+
+          {/* Face profile */}
+          <section className="shadow-card mt-6 rounded-2xl border border-slate-200 bg-white">
+            <div className="border-b border-slate-100 px-5 py-3">
+              <h2 className="text-sm font-semibold text-slate-900">Face profile</h2>
+              <p className="mt-0.5 text-sm text-slate-500">
+                A selfie TripSync matches against event photos to find the ones you&apos;re in. Stored
+                privately and only used for matching.
               </p>
-            )}
-          </div>
+            </div>
+            <div className="p-5">
+              <SelfieCapture user={user} onUpdated={applyUser} />
+            </div>
+          </section>
 
-          <BrandingImage
-            kind="logo"
-            label="Logo"
-            hint="Square works best — around 512×512px. PNG, JPEG, or WebP, up to 2 MB."
-            currentUrl={user?.logoUrl}
-            onUpdated={applyUser}
-          />
-          <BrandingImage
-            kind="cover"
-            label="Cover photo"
-            hint="Wide banner — around 1600×600px. PNG, JPEG, or WebP, up to 6 MB."
-            currentUrl={user?.coverUrl}
-            onUpdated={applyUser}
-          />
-        </div>
-      </section>
-
-      {/* Sign-in methods */}
-      {GOOGLE_CLIENT_ID ? (
-        <section className="mt-6 rounded-2xl border border-slate-200 bg-white">
-          <div className="border-b border-slate-100 px-5 py-3">
-            <h2 className="text-sm font-semibold text-slate-900">Sign-in methods</h2>
-            <p className="mt-0.5 text-sm text-slate-500">
-              Connect another way to sign in so you&apos;re never locked out.
-            </p>
-          </div>
-          <div className="p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-slate-900">Google</p>
-                <p className="text-xs text-slate-500">
-                  {user?.linkedMethods?.google ? (user.email ?? "Connected") : "Not connected"}
+          {/* Sign-in methods */}
+          {GOOGLE_CLIENT_ID ? (
+            <section className="shadow-card mt-6 rounded-2xl border border-slate-200 bg-white">
+              <div className="border-b border-slate-100 px-5 py-3">
+                <h2 className="text-sm font-semibold text-slate-900">Sign-in methods</h2>
+                <p className="mt-0.5 text-sm text-slate-500">
+                  Connect another way to sign in so you&apos;re never locked out.
                 </p>
               </div>
-              {user?.linkedMethods?.google ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-700">
-                  <Check className="h-3.5 w-3.5" />
-                  Connected
-                </span>
-              ) : linking ? (
-                <span className="inline-flex items-center gap-1.5 text-sm text-slate-500">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Connecting…
-                </span>
-              ) : (
-                <GoogleSignInButton
-                  text="signin_with"
-                  width={220}
-                  onCredential={(idToken) => void linkGoogle(idToken)}
-                />
-              )}
+              <div className="p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-900">Google</p>
+                    <p className="text-xs text-slate-500">
+                      {user?.linkedMethods?.google ? (user.email ?? "Connected") : "Not connected"}
+                    </p>
+                  </div>
+                  {user?.linkedMethods?.google ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-700">
+                      <Check className="h-3.5 w-3.5" />
+                      Connected
+                    </span>
+                  ) : linking ? (
+                    <span className="inline-flex items-center gap-1.5 text-sm text-slate-500">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Connecting…
+                    </span>
+                  ) : (
+                    <GoogleSignInButton
+                      text="signin_with"
+                      width={220}
+                      onCredential={(idToken) => void linkGoogle(idToken)}
+                    />
+                  )}
+                </div>
+                {linkError ? <p className="mt-3 text-sm text-red-600">{linkError}</p> : null}
+              </div>
+            </section>
+          ) : null}
+        </div>
+      ) : (
+        <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+          {/* Studio branding form */}
+          <section className="shadow-card rounded-2xl border border-slate-200 bg-white">
+            <div className="border-b border-slate-100 px-5 py-3">
+              <h2 className="text-sm font-semibold text-slate-900">Studio branding</h2>
+              <p className="mt-0.5 text-sm text-slate-500">
+                Optional. Used to brand the pages and posters you share with guests.
+              </p>
             </div>
-            {linkError ? <p className="mt-3 text-sm text-red-600">{linkError}</p> : null}
+            <div className="space-y-5 p-5">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Company / studio name</label>
+                <div className="flex gap-2">
+                  <input
+                    value={company}
+                    onChange={(e) => {
+                      setCompanySaved(false);
+                      setCompany(e.target.value);
+                    }}
+                    maxLength={60}
+                    placeholder="e.g. Lumina Studio"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                  />
+                  <SaveButton
+                    dirty={companyDirty}
+                    saving={savingCompany}
+                    saved={companySaved}
+                    onClick={() => void saveCompany()}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Studio phone</label>
+                <div className="flex gap-2">
+                  <input
+                    value={studioPhone}
+                    onChange={(e) => {
+                      setPhoneSaved(false);
+                      setPhoneError(null);
+                      setStudioPhone(e.target.value);
+                    }}
+                    type="tel"
+                    inputMode="tel"
+                    maxLength={20}
+                    placeholder="+91 98765 43210"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                  />
+                  <SaveButton
+                    dirty={phoneDirty}
+                    saving={savingPhone}
+                    saved={phoneSaved}
+                    onClick={() => void saveStudioPhone()}
+                  />
+                </div>
+                {phoneError ? (
+                  <p className="mt-1 text-xs text-red-600">{phoneError}</p>
+                ) : (
+                  <p className="mt-1 text-xs text-slate-500">
+                    Shown to guests so they can contact you. Not your login number.
+                  </p>
+                )}
+              </div>
+
+              <BrandingImage
+                kind="logo"
+                label="Logo"
+                hint="Square works best — around 512×512px. PNG, JPEG, or WebP, up to 2 MB."
+                currentUrl={user?.logoUrl}
+                onUpdated={applyUser}
+              />
+              <BrandingImage
+                kind="cover"
+                label="Cover photo"
+                hint="Wide banner — around 1600×600px. PNG, JPEG, or WebP, up to 6 MB."
+                currentUrl={user?.coverUrl}
+                onUpdated={applyUser}
+              />
+            </div>
+          </section>
+
+          {/* Live preview on the right (sticky on desktop) — mirrors the guest album / pay page, so
+              the form has room to breathe and the right-hand space is put to use. */}
+          <div className="lg:sticky lg:top-6">
+            <BrandingPreview
+              companyName={company}
+              studioPhone={studioPhone}
+              logoUrl={user?.logoUrl}
+              coverUrl={user?.coverUrl}
+            />
           </div>
-        </section>
-      ) : null}
+        </div>
+      )}
     </div>
   );
 }

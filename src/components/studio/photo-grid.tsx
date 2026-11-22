@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ImageIcon, Loader2, RefreshCw, Trash2 } from "lucide-react";
+import { ImageIcon, Images, Loader2, RefreshCw, Trash2 } from "lucide-react";
 
 import { studioApi, ApiError } from "@/lib/studio/api";
 import { clearTokens } from "@/lib/studio/auth";
@@ -16,11 +16,15 @@ export function PhotoGrid({
   folder,
   reload = 0,
   canDelete = false,
+  uploadAvailable = false,
 }: {
   tripId: string;
   folder?: string;
   reload?: number;
   canDelete?: boolean;
+  // When true, an upload dropzone is shown just above this grid — so an empty whole-group view renders
+  // nothing here (the dropzone IS the empty state) instead of a second, redundant dashed box.
+  uploadAvailable?: boolean;
 }) {
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [photos, setPhotos] = useState<StudioPhoto[]>([]);
@@ -112,15 +116,41 @@ export function PhotoGrid({
   }
 
   if (status === "loading") {
-    return <p className="text-slate-400">Loading photos…</p>;
+    return (
+      <div className="grid grid-cols-3 gap-1 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+        {Array.from({ length: 12 }).map((_, i) => (
+          <div key={i} className="skeleton aspect-square rounded-md" />
+        ))}
+      </div>
+    );
   }
   if (status === "error") {
     return <p className="text-red-600">Couldn&apos;t load photos. Please retry.</p>;
   }
   if (photos.length === 0) {
+    // A specific folder that's empty: a light inline note.
+    if (folder) {
+      return (
+        <p className="rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-8 text-center text-sm text-slate-500">
+          No photos in this folder yet.
+        </p>
+      );
+    }
+    // Whole group empty while an upload dropzone is shown above — don't duplicate it.
+    if (uploadAvailable) {
+      return null;
+    }
+    // Whole group empty for a viewer who can't upload (guest/member): a proper empty state.
     return (
-      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
-        {folder ? "No photos in this folder yet." : "No photos yet — upload some above."}
+      <div className="flex flex-col items-center rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-14 text-center">
+        <span className="relative mb-4 flex h-16 w-16 items-center justify-center">
+          <span className="absolute inset-0 rounded-full bg-teal-50" />
+          <span className="bg-brand relative flex h-11 w-11 items-center justify-center rounded-2xl text-white shadow-sm">
+            <Images className="h-6 w-6" />
+          </span>
+        </span>
+        <p className="font-medium text-slate-900">No photos yet</p>
+        <p className="mt-1 text-sm text-slate-500">Photos the host adds will appear here.</p>
       </div>
     );
   }

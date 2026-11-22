@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { AlertTriangle, FolderUp, Loader2, RefreshCw, UploadCloud, WifiOff } from "lucide-react";
+import { AlertTriangle, FolderUp, Images, Loader2, RefreshCw, UploadCloud, WifiOff } from "lucide-react";
 
 import { runUpload, type UploadProgress } from "@/lib/studio/upload";
 
@@ -10,10 +10,14 @@ export function UploadPanel({
   tripId,
   folderId,
   onUploaded,
+  compact = false,
 }: {
   tripId: string;
   folderId?: string;
   onUploaded?: () => void;
+  // Slim one-row layout for groups that already have photos, so the uploader doesn't push the grid
+  // far down the page. The big illustrated version is used for an empty group.
+  compact?: boolean;
 }) {
   const [uploading, setUploading] = useState(false);
   const [done, setDone] = useState(false);
@@ -68,6 +72,30 @@ export function UploadPanel({
     return "Upload complete";
   })();
 
+  // Shared upload actions, reused by both the full and compact layouts.
+  const actions = (
+    <>
+      <button
+        type="button"
+        disabled={uploading}
+        onClick={() => fileInput.current?.click()}
+        className="bg-brand inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 disabled:opacity-60"
+      >
+        <UploadCloud className="h-4 w-4" />
+        Choose photos
+      </button>
+      <button
+        type="button"
+        disabled={uploading}
+        onClick={() => folderInput.current?.click()}
+        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+      >
+        <FolderUp className="h-4 w-4" />
+        Choose folder
+      </button>
+    </>
+  );
+
   return (
     <div>
       <div
@@ -81,36 +109,44 @@ export function UploadPanel({
           setDragging(false);
           handleFiles(e.dataTransfer.files);
         }}
-        className={`rounded-2xl border-2 border-dashed p-10 text-center transition ${
-          dragging ? "border-teal-500 bg-teal-50" : "border-slate-300 bg-white"
-        }`}
+        className={`shadow-card rounded-2xl border-2 border-dashed transition ${
+          compact ? "p-4" : "p-10 text-center"
+        } ${dragging ? "scale-[1.01] border-teal-500 bg-teal-50" : "border-slate-200 bg-white"}`}
       >
-        <UploadCloud className="mx-auto h-8 w-8 text-teal-600" />
-        <p className="mt-3 font-medium text-slate-900">Drag photos here to upload</p>
-        <p className="mt-1 text-sm text-slate-500">
-          Originals are kept full-resolution. JPEG, PNG, WebP and GIF are supported.
-        </p>
-
-        <div className="mt-5 flex flex-wrap justify-center gap-2">
-          <button
-            type="button"
-            disabled={uploading}
-            onClick={() => fileInput.current?.click()}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:opacity-60"
-          >
-            <UploadCloud className="h-4 w-4" />
-            Choose photos
-          </button>
-          <button
-            type="button"
-            disabled={uploading}
-            onClick={() => folderInput.current?.click()}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
-          >
-            <FolderUp className="h-4 w-4" />
-            Choose folder
-          </button>
-        </div>
+        {compact ? (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="bg-brand flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-sm">
+                {dragging ? <UploadCloud className="h-5 w-5" /> : <Images className="h-5 w-5" />}
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-900">
+                  {dragging ? "Drop to upload" : "Add more photos"}
+                </p>
+                <p className="truncate text-xs text-slate-500">
+                  Drag here, or choose below. JPEG, PNG, WebP, GIF — originals kept full-resolution.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">{actions}</div>
+          </div>
+        ) : (
+          <>
+            <div className="relative mx-auto mb-4 flex h-20 w-20 items-center justify-center">
+              <span className="absolute inset-0 rounded-full bg-teal-50" />
+              <span className="bg-brand relative flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-md">
+                {dragging ? <UploadCloud className="h-7 w-7" /> : <Images className="h-7 w-7" />}
+              </span>
+            </div>
+            <p className="text-base font-semibold text-slate-900">
+              {dragging ? "Drop to upload" : "Drag photos here to upload"}
+            </p>
+            <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">
+              Originals are kept full-resolution. JPEG, PNG, WebP and GIF are supported.
+            </p>
+            <div className="mt-5 flex flex-wrap justify-center gap-2">{actions}</div>
+          </>
+        )}
 
         <input
           ref={fileInput}
