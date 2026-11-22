@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Check, Loader2 } from "lucide-react";
+import { Check, Loader2, MessageCircle, Phone } from "lucide-react";
 
 import { studioApi, ApiError } from "@/lib/studio/api";
 import { getAccessToken, setTokens, clearTokens } from "@/lib/studio/auth";
@@ -35,11 +35,15 @@ function markSetupSeen(userId: string): void {
   }
 }
 
-// Branded header: cover banner (if provided) + logo + company/event title. Pure presentational.
+// Branded header: cover banner (if provided) + logo + company/event title, plus the photographer's
+// Call / WhatsApp contact actions when they've set a studio phone. Pure presentational.
 function BrandHeader({ event }: { event: PublicEvent | null }) {
   const company = event?.photographer.companyName?.trim() || "";
   const logo = event?.photographer.logoUrl || "";
   const cover = event?.photographer.coverUrl || "";
+  // Guest-facing contact number (E.164, e.g. "+919876543210"). wa.me wants digits only, no '+'.
+  const phone = event?.photographer.studioPhone?.trim() || "";
+  const waDigits = phone.replace(/\D/g, "");
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
       {cover ? (
@@ -48,12 +52,12 @@ function BrandHeader({ event }: { event: PublicEvent | null }) {
       ) : (
         <div className="h-20 w-full bg-gradient-to-br from-teal-700 via-teal-500 to-teal-300" />
       )}
-      <div className="flex items-center gap-3 px-5 py-4">
+      <div className="flex flex-wrap items-center gap-3 px-5 py-4">
         {logo ? (
           // eslint-disable-next-line @next/next/no-img-element -- signed S3 URL
           <img src={logo} alt="" className="h-12 w-12 shrink-0 rounded-xl object-contain ring-1 ring-slate-200" />
         ) : null}
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           {company ? (
             <p className="truncate text-xs font-semibold uppercase tracking-wide text-teal-600">{company}</p>
           ) : null}
@@ -61,7 +65,35 @@ function BrandHeader({ event }: { event: PublicEvent | null }) {
             {event?.eventTitle || "Your event photos"}
           </h1>
         </div>
+        {phone ? (
+          // shrink-0 keeps the pills intact; the parent's flex-wrap drops them under the title on
+          // narrow screens.
+          <div className="flex shrink-0 items-center gap-2">
+            <a
+              href={`tel:${phone}`}
+              className="inline-flex items-center gap-1.5 rounded-full border border-teal-200 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-700 transition hover:bg-teal-100"
+            >
+              <Phone className="h-3.5 w-3.5" />
+              Call
+            </a>
+            <a
+              href={`https://wa.me/${waDigits}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-full border border-teal-200 bg-white px-3 py-1.5 text-xs font-semibold text-teal-700 transition hover:bg-teal-50"
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              WhatsApp
+            </a>
+          </div>
+        ) : null}
       </div>
+      {phone ? (
+        <div className="flex items-center gap-1.5 border-t border-slate-100 px-5 py-2.5 text-xs text-slate-500">
+          <Phone className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+          <span>{phone}</span>
+        </div>
+      ) : null}
     </div>
   );
 }

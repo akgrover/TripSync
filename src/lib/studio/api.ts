@@ -181,6 +181,10 @@ export const studioApi = {
   // Set the photographer company/studio name ('' or null clears it).
   setCompanyName: (companyName: string | null) =>
     request<{ user: StudioUser }>("/me", { method: "PATCH", body: { companyName } }),
+  // Set the public studio contact number ('' or null clears it). The API normalizes to E.164 and
+  // returns a 400 for an implausible number (surfaced inline on the profile form).
+  setStudioPhone: (studioPhone: string | null) =>
+    request<{ user: StudioUser }>("/me", { method: "PATCH", body: { studioPhone } }),
   // Face profile (reference selfie). init → PUT bytes to S3 → complete (indexes the face; the API
   // returns 422 UNPROCESSABLE if it isn't exactly one clear face, so the caller can prompt a retake).
   initReferenceSelfie: (fileName: string, contentType: string) =>
@@ -336,6 +340,10 @@ export const studioApi = {
   // opens the "Groups" popup for a row, so the overview stays lightweight.
   getAdminOwnerGroups: (ownerId: string) =>
     request<{ groups: AdminOwnerGroup[] }>(`/admin/owners/${ownerId}/groups`),
+  // Permanently delete a group (admin takedown). Irreversible — removes the album + every photo for
+  // everyone. The caller gates this behind a type-to-confirm dialog.
+  adminDeleteGroup: (tripId: string) =>
+    request<{ deleted: boolean; id: string }>(`/admin/trips/${tripId}/delete`, { method: "POST" }),
   getAdminFlags: () => request<{ flags: AdminFlag[] }>("/admin/flags"),
   setAdminFlag: (key: string, enabled: boolean) =>
     request<{ flags: AdminFlag[] }>("/admin/flags", { method: "POST", body: { key, enabled } }),

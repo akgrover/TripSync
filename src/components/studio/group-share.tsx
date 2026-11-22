@@ -23,15 +23,19 @@ function shareMessage(trip: StudioTrip): string {
 export function GroupShare({ trip }: { trip: StudioTrip }) {
   const [copied, setCopied] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
-  // The signed-in photographer's logo, used to brand the poster. Null until loaded / if unset.
+  // The signed-in photographer's logo + contact number, used to brand the poster. Null until loaded.
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [studioPhone, setStudioPhone] = useState<string | null>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let active = true;
     void getCachedMe()
       .then((user) => {
-        if (active) setLogoUrl(user.logoUrl ?? null);
+        if (active) {
+          setLogoUrl(user.logoUrl ?? null);
+          setStudioPhone(user.studioPhone ?? null);
+        }
       })
       .catch(() => undefined);
     return () => {
@@ -95,7 +99,7 @@ export function GroupShare({ trip }: { trip: StudioTrip }) {
 
         {/* Printable A5 poster (preview scaled to half). */}
         <div className="flex justify-center">
-          <QrPoster trip={trip} logoUrl={logoUrl} />
+          <QrPoster trip={trip} logoUrl={logoUrl} studioPhone={studioPhone} />
         </div>
 
         {/* Hidden high-res canvas, used only to export a PNG of the QR itself. */}

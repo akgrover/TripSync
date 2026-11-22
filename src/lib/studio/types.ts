@@ -44,6 +44,9 @@ export type StudioUser = {
   companyName?: string;
   logoUrl?: string | null;
   coverUrl?: string | null;
+  // Public studio contact number shown to guests (Call / WhatsApp). '' when unset. NOT the login
+  // phone (that's `phone` above) — this one is guest-facing.
+  studioPhone?: string;
 };
 
 export type AuthResponse = {
@@ -55,7 +58,13 @@ export type AuthResponse = {
 // Public (unauthenticated) branding for a shared event, from GET /public/events/:code.
 export type PublicEvent = {
   eventTitle: string;
-  photographer: { companyName: string; logoUrl: string | null; coverUrl: string | null };
+  photographer: {
+    companyName: string;
+    logoUrl: string | null;
+    coverUrl: string | null;
+    // Public contact number (E.164) for guest Call / WhatsApp; null when the photographer set none.
+    studioPhone: string | null;
+  };
 };
 
 export type StudioFolder = {

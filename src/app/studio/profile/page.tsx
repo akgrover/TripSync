@@ -24,6 +24,11 @@ export default function StudioProfilePage() {
   const [savingCompany, setSavingCompany] = useState(false);
   const [companySaved, setCompanySaved] = useState(false);
 
+  const [studioPhone, setStudioPhone] = useState("");
+  const [savingPhone, setSavingPhone] = useState(false);
+  const [phoneSaved, setPhoneSaved] = useState(false);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+
   const [linking, setLinking] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
 
@@ -43,6 +48,7 @@ export default function StudioProfilePage() {
         setUser(res.user);
         setName(res.user.name ?? "");
         setCompany(res.user.companyName ?? "");
+        setStudioPhone(res.user.studioPhone ?? "");
         setStatus("ready");
       } catch (err) {
         if (!active) return;
@@ -95,6 +101,35 @@ export default function StudioProfilePage() {
     }
   }
 
+  async function saveStudioPhone() {
+    if (savingPhone) {
+      return;
+    }
+    const value = studioPhone.trim();
+    // Client-side guard so an obviously-wrong number never round-trips; the API does the real
+    // normalization and has the final say (its error is surfaced inline below).
+    const digitCount = value.replace(/\D/g, "").length;
+    if (value.length > 0 && (digitCount < 8 || digitCount > 15)) {
+      setPhoneError("Enter a valid phone number with country code, e.g. +91 98765 43210.");
+      return;
+    }
+    setSavingPhone(true);
+    setPhoneSaved(false);
+    setPhoneError(null);
+    try {
+      const res = await studioApi.setStudioPhone(value.length ? value : null);
+      applyUser(res.user);
+      setStudioPhone(res.user.studioPhone ?? "");
+      setPhoneSaved(true);
+    } catch (err) {
+      setPhoneError(
+        err instanceof ApiError ? err.message : "Couldn't save that number. Please try again.",
+      );
+    } finally {
+      setSavingPhone(false);
+    }
+  }
+
   async function linkGoogle(idToken: string) {
     if (linking) {
       return;
@@ -123,6 +158,7 @@ export default function StudioProfilePage() {
   }
 
   const companyDirty = company.trim() !== (user?.companyName ?? "");
+  const phoneDirty = studioPhone.trim() !== (user?.studioPhone ?? "");
 
   return (
     <div className="max-w-2xl">
@@ -200,7 +236,7 @@ export default function StudioProfilePage() {
                   setCompany(e.target.value);
                 }}
                 maxLength={60}
-                placeholder="e.g. AK Photography"
+                placeholder="e.g. Lumina Studio"
                 className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
               />
               <button
@@ -213,6 +249,41 @@ export default function StudioProfilePage() {
                 Save
               </button>
             </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Studio phone</label>
+            <div className="flex gap-2">
+              <input
+                value={studioPhone}
+                onChange={(e) => {
+                  setPhoneSaved(false);
+                  setPhoneError(null);
+                  setStudioPhone(e.target.value);
+                }}
+                type="tel"
+                inputMode="tel"
+                maxLength={20}
+                placeholder="+91 98765 43210"
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+              />
+              <button
+                type="button"
+                onClick={() => void saveStudioPhone()}
+                disabled={savingPhone || !phoneDirty}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-teal-600 px-4 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
+              >
+                {savingPhone ? <Loader2 className="h-4 w-4 animate-spin" /> : phoneSaved ? <Check className="h-4 w-4" /> : null}
+                Save
+              </button>
+            </div>
+            {phoneError ? (
+              <p className="mt-1 text-xs text-red-600">{phoneError}</p>
+            ) : (
+              <p className="mt-1 text-xs text-slate-500">
+                Shown to guests so they can contact you. Not your login number.
+              </p>
+            )}
           </div>
 
           <BrandingImage

@@ -13,6 +13,7 @@ import {
   Loader2,
   RefreshCw,
   ShieldCheck,
+  Trash2,
   Users,
 } from "lucide-react";
 
@@ -87,6 +88,12 @@ export default function RecordsPage() {
   const [groupsOwner, setGroupsOwner] = useState<AdminOwnerRow | null>(null);
   const [groupsCache, setGroupsCache] = useState<Record<string, AdminOwnerGroup[]>>({});
   const [groupsStatus, setGroupsStatus] = useState<"idle" | "loading" | "error">("idle");
+  // Admin group deletion (inside the Groups popup). `armedGroupId` is the group showing its
+  // type-to-confirm box; `confirmText` must match the group title before Delete enables.
+  const [armedGroupId, setArmedGroupId] = useState<string | null>(null);
+  const [confirmText, setConfirmText] = useState("");
+  const [deletingGroupId, setDeletingGroupId] = useState<string | null>(null);
+  const [groupError, setGroupError] = useState<string | null>(null);
   // Ignore out-of-order responses when the window is switched quickly.
   const reqRef = useRef(0);
   // Same guard for the per-owner groups fetch (opening another row supersedes the previous one).
@@ -95,6 +102,10 @@ export default function RecordsPage() {
   // Open the groups popup for an owner, fetching the breakdown on first open (cached thereafter).
   function openGroups(o: AdminOwnerRow) {
     setGroupsOwner(o);
+    // Reset any armed delete from a previously-opened owner.
+    setArmedGroupId(null);
+    setConfirmText("");
+    setGroupError(null);
     if (groupsCache[o.id]) {
       setGroupsStatus("idle");
       return;
@@ -113,6 +124,55 @@ export default function RecordsPage() {
         setGroupsStatus("error");
       }
     })();
+  }
+
+  // Close the groups popup, clearing any armed delete.
+  function closeGroups() {
+    setGroupsOwner(null);
+    setArmedGroupId(null);
+    setConfirmText("");
+    setGroupError(null);
+  }
+
+  // Permanently delete a group (admin). Gated on the typed confirmation matching the group title.
+  // On success, drop it from the open popup list and decrement the table/summary counts in place.
+  async function deleteGroup(ownerId: string, group: AdminOwnerGroup) {
+    if (deletingGroupId || confirmText.trim() !== group.title.trim()) {
+      return;
+    }
+    setDeletingGroupId(group.id);
+    setGroupError(null);
+    try {
+      await studioApi.adminDeleteGroup(group.id);
+      setGroupsCache((prev) => ({
+        ...prev,
+        [ownerId]: (prev[ownerId] ?? []).filter((item) => item.id !== group.id),
+      }));
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              summary: {
+                ...prev.summary,
+                eventGroupCount: Math.max(0, prev.summary.eventGroupCount - 1),
+              },
+              owners: prev.owners.map((owner) =>
+                owner.id === ownerId
+                  ? { ...owner, groupCount: Math.max(0, owner.groupCount - 1) }
+                  : owner,
+              ),
+            }
+          : prev,
+      );
+      setArmedGroupId(null);
+      setConfirmText("");
+    } catch (err) {
+      setGroupError(
+        err instanceof ApiError ? err.message : "Couldn't delete that group. Please try again.",
+      );
+    } finally {
+      setDeletingGroupId(null);
+    }
   }
 
   function toggleSort(key: SortKey) {
@@ -512,77 +572,185 @@ export default function RecordsPage() {
       {/* Per-owner group breakdown — names + member counts, lazily fetched on open. */}
       <Dialog
         open={groupsOwner !== null}
-        onClose={() => setGroupsOwner(null)}
+        onClose={closeGroups}
         title={groupsOwner ? `${groupsOwner.name} — groups` : "Groups"}
       >
         {groupsOwner ? (
-          (() => {
-            const groups = groupsCache[groupsOwner.id];
-            if (!groups) {
-              if (groupsStatus === "error") {
-                return (
-                  <button
-                    type="button"
-                    onClick={() => openGroups(groupsOwner)}
-                    className="inline-flex items-center gap-1.5 text-sm text-red-600"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                    Couldn&apos;t load groups. Retry.
-                  </button>
-                );
-              }
-              return (
-                <p className="flex items-center gap-2 text-sm text-slate-400">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Loading groups…
-                </p>
-              );
-            }
-            if (groups.length === 0) {
-              return <p className="text-sm text-slate-400">No event groups.</p>;
-            }
-            return (
-              <div className="space-y-3">
-                <p className="text-xs text-slate-500">
-                  {formatCount(groups.length)} event {groups.length === 1 ? "group" : "groups"}.
-                  Members include the host; guests are the non-host members.
-                </p>
-                <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
-                  {groups.map((g) => (
-                    <li
-                      key={g.id}
-                      className="flex items-start justify-between gap-3 px-3 py-2.5 text-sm"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate font-medium text-slate-900">{g.title}</p>
-                        <p className="mt-0.5 text-xs text-slate-500">
-                          Created {formatDate(g.createdAt)}
-                          {g.watermark ? " · watermark on" : ""}
-                        </p>
-                      </div>
-                      <div className="shrink-0 whitespace-nowrap text-right">
-                        <p>
-                          <span className="font-medium text-slate-900">
-                            {formatCount(g.memberCount)}
-                          </span>{" "}
-                          <span className="text-slate-400">
-                            {g.memberCount === 1 ? "member" : "members"}
-                          </span>
-                        </p>
-                        <p className="mt-0.5 text-xs text-slate-400">
-                          {formatCount(g.guestCount)} {g.guestCount === 1 ? "guest" : "guests"}
-                        </p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            );
-          })()
+          <GroupsPopupBody
+            groups={groupsCache[groupsOwner.id]}
+            status={groupsStatus}
+            armedGroupId={armedGroupId}
+            confirmText={confirmText}
+            deletingGroupId={deletingGroupId}
+            groupError={groupError}
+            onRetry={() => openGroups(groupsOwner)}
+            onArm={(id) => {
+              setArmedGroupId(id);
+              setConfirmText("");
+              setGroupError(null);
+            }}
+            onCancel={() => {
+              setArmedGroupId(null);
+              setConfirmText("");
+              setGroupError(null);
+            }}
+            onConfirmTextChange={setConfirmText}
+            onDelete={(g) => void deleteGroup(groupsOwner.id, g)}
+          />
         ) : null}
       </Dialog>
 
       <FeatureFlagsPanel />
+    </div>
+  );
+}
+
+// Body of the per-owner "Groups" popup: loading / error / empty / the list with a type-to-confirm
+// delete per group. Kept as its own component so the owner-scoped handlers (which touch the parent's
+// request-guard ref) are passed in as plain event handlers, never referenced during render.
+function GroupsPopupBody({
+  groups,
+  status,
+  armedGroupId,
+  confirmText,
+  deletingGroupId,
+  groupError,
+  onRetry,
+  onArm,
+  onCancel,
+  onConfirmTextChange,
+  onDelete,
+}: {
+  groups: AdminOwnerGroup[] | undefined;
+  status: "idle" | "loading" | "error";
+  armedGroupId: string | null;
+  confirmText: string;
+  deletingGroupId: string | null;
+  groupError: string | null;
+  onRetry: () => void;
+  onArm: (groupId: string) => void;
+  onCancel: () => void;
+  onConfirmTextChange: (value: string) => void;
+  onDelete: (group: AdminOwnerGroup) => void;
+}) {
+  if (!groups) {
+    if (status === "error") {
+      return (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="inline-flex items-center gap-1.5 text-sm text-red-600"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Couldn&apos;t load groups. Retry.
+        </button>
+      );
+    }
+    return (
+      <p className="flex items-center gap-2 text-sm text-slate-400">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading groups…
+      </p>
+    );
+  }
+  if (groups.length === 0) {
+    return <p className="text-sm text-slate-400">No event groups.</p>;
+  }
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-slate-500">
+        {formatCount(groups.length)} event {groups.length === 1 ? "group" : "groups"}. Members
+        include the host; guests are the non-host members.
+      </p>
+      <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
+        {groups.map((g) => {
+          const armed = armedGroupId === g.id;
+          const busy = deletingGroupId === g.id;
+          return (
+            <li key={g.id} className="px-3 py-2.5 text-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-slate-900">{g.title}</p>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    Created {formatDate(g.createdAt)}
+                    {g.watermark ? " · watermark on" : ""}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-start gap-3">
+                  <div className="whitespace-nowrap text-right">
+                    <p>
+                      <span className="font-medium text-slate-900">
+                        {formatCount(g.memberCount)}
+                      </span>{" "}
+                      <span className="text-slate-400">
+                        {g.memberCount === 1 ? "member" : "members"}
+                      </span>
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-400">
+                      {formatCount(g.guestCount)} {g.guestCount === 1 ? "guest" : "guests"}
+                    </p>
+                  </div>
+                  {!armed ? (
+                    <button
+                      type="button"
+                      onClick={() => onArm(g.id)}
+                      aria-label={`Delete ${g.title}`}
+                      title="Delete group"
+                      className="mt-0.5 shrink-0 rounded-lg border border-red-200 p-1.5 text-red-500 transition hover:bg-red-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+
+              {armed ? (
+                <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3">
+                  <p className="text-xs text-red-700">
+                    Permanently deletes this group and <strong>every photo</strong> in it, for
+                    everyone (incl. {formatCount(g.guestCount)}{" "}
+                    {g.guestCount === 1 ? "guest" : "guests"}). This can&apos;t be undone.
+                  </p>
+                  <p className="mt-2 text-xs text-slate-600">
+                    Type <span className="font-semibold">{g.title}</span> to confirm:
+                  </p>
+                  <input
+                    value={confirmText}
+                    onChange={(e) => onConfirmTextChange(e.target.value)}
+                    autoFocus
+                    placeholder={g.title}
+                    className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                  />
+                  {groupError ? <p className="mt-1.5 text-xs text-red-600">{groupError}</p> : null}
+                  <div className="mt-2.5 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={onCancel}
+                      disabled={busy}
+                      className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDelete(g)}
+                      disabled={busy || confirmText.trim() !== g.title.trim()}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+                    >
+                      {busy ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                      Delete group
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

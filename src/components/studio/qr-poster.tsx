@@ -13,13 +13,18 @@ import type { StudioTrip } from "@/lib/studio/types";
 export function QrPoster({
   trip,
   logoUrl,
+  studioPhone,
   scale = 0.5,
 }: {
   trip: StudioTrip;
   // Photographer's logo (signed URL). Shown in the footer when set; nothing is shown when absent.
   logoUrl?: string | null;
+  // Photographer's public contact number (E.164). Shown as one small footer line when set. The QR is
+  // a fixed size, so this never shrinks it — it just uses the footer's spare vertical space.
+  studioPhone?: string | null;
   scale?: number;
 }) {
+  const phone = studioPhone?.trim() ?? "";
   const code = trip.inviteCode ?? "";
   const posterUrl = qrJoinLink(code);
 
@@ -119,6 +124,11 @@ export function QrPoster({
                 background: "linear-gradient(90deg, transparent, #99f6e4, transparent)",
               }}
             />
+            {phone ? (
+              <p className="mt-[3mm] font-semibold text-slate-700" style={{ fontSize: "10.5pt" }}>
+                Call {phone}
+              </p>
+            ) : null}
             <p className="mt-[3mm] text-slate-400" style={{ fontSize: "9pt" }}>
               Powered by TripSync
             </p>
