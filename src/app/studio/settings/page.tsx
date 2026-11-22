@@ -21,6 +21,7 @@ export default function StudioSettingsPage() {
   const [opacity, setOpacity] = useState(DEFAULT_OPACITY);
   const [savingWatermark, setSavingWatermark] = useState(false);
   const [watermarkSaved, setWatermarkSaved] = useState(false);
+  const [watermarkError, setWatermarkError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -53,12 +54,22 @@ export default function StudioSettingsPage() {
     }
     setSavingWatermark(true);
     setWatermarkSaved(false);
+    setWatermarkError(null);
     try {
       const res = await studioApi.setWatermarkStyle(watermark.trim(), opacity);
       setUser(res.user);
       setWatermarkSaved(true);
-    } catch {
-      // no-op
+    } catch (err) {
+      // A dead session routes to login like everywhere else; otherwise surface why the save failed
+      // (it used to fail silently — the button would just stop with no feedback).
+      if (err instanceof ApiError && err.status === 401) {
+        clearTokens();
+        window.location.replace("/studio/login");
+        return;
+      }
+      setWatermarkError(
+        err instanceof ApiError ? err.message : "Couldn't save your watermark. Please try again.",
+      );
     } finally {
       setSavingWatermark(false);
     }
@@ -86,6 +97,9 @@ export default function StudioSettingsPage() {
   // an older /me payload to shown.
   const isHostUser = user?.isHost !== false;
   const watermarkEntitled = hasWatermarkEntitlement(user);
+  // Pay-to-unlock photographers: the watermark is applied automatically (on until the event is paid)
+  // and doesn't depend on the plan's watermark feature — so the copy + the Pro upsell differ.
+  const isRevShare = user?.eventBillingMode === "rev_share";
 
   return (
     <div className="max-w-2xl">
@@ -101,11 +115,12 @@ export default function StudioSettingsPage() {
           <div className="border-b border-slate-100 px-5 py-3">
             <h2 className="text-sm font-semibold text-slate-900">Watermark</h2>
             <p className="mt-0.5 text-sm text-slate-500">
-              When you turn on watermarking for an event, guests see this text tiled across each photo
-              until you give them access. Turn it on per event in the group&apos;s settings.
+              {isRevShare
+                ? "On your pay-to-unlock events, guests see this text tiled across every photo until the event is paid. It's applied automatically — you don't switch it on per event."
+                : "When you turn on watermarking for an event, guests see this text tiled across each photo until you give them access. Turn it on per event in the group's settings."}
             </p>
           </div>
-          {!watermarkEntitled ? (
+          {!watermarkEntitled && !isRevShare ? (
             <p className="border-b border-slate-100 bg-amber-50 px-5 py-2.5 text-xs text-amber-700">
               Watermarking events is included on <span className="font-semibold">Pro</span> and{" "}
               <span className="font-semibold">Premium</span>. You can set your watermark style now — it
@@ -168,10 +183,12 @@ export default function StudioSettingsPage() {
                 Save watermark
               </button>
               <p className="text-xs text-slate-400">
-                New photos use this right away. To re-apply to an event&apos;s existing photos, use
-                &ldquo;Re-apply watermark&rdquo; in that group&apos;s settings.
+                {isRevShare
+                  ? "New photos use this right away."
+                  : "New photos use this right away. To re-apply to an event’s existing photos, use “Re-apply watermark” in that group’s settings."}
               </p>
             </div>
+            {watermarkError ? <p className="text-sm text-red-600">{watermarkError}</p> : null}
           </div>
         </section>
       ) : (

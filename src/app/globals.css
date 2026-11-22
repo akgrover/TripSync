@@ -115,6 +115,38 @@ body {
   }
 }
 
+/* Gentle entrance for the public pay card + a pop for the unlock confirmation. The reduced-motion
+   media query above already neutralises these for users who ask for less motion. */
+@keyframes ts-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-rise {
+  animation: ts-rise 0.35s ease-out both;
+}
+@keyframes ts-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.animate-pop {
+  animation: ts-pop 0.4s ease-out both;
+}
+
 /* Masonry columns for the photo grid demo */
 .masonry {
   column-count: 2;

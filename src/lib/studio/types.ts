@@ -47,6 +47,9 @@ export type StudioUser = {
   // Public studio contact number shown to guests (Call / WhatsApp). '' when unset. NOT the login
   // phone (that's `phone` above) — this one is guest-facing.
   studioPhone?: string;
+  // Event-group billing model (admin-set). 'annual' (default) = proofing; 'rev_share' =
+  // pay-to-unlock. Drives mode-aware copy in Settings. Optional so an older /me can't crash the UI.
+  eventBillingMode?: "annual" | "rev_share";
 };
 
 export type AuthResponse = {
@@ -95,8 +98,37 @@ export type StudioTrip = {
   photoVisibility?: "everyone" | "matched_only";
   // Watermark / proofing (event groups). When enabled, guests see a watermarked preview.
   watermark?: { enabled: boolean };
+  // Access model (see docs/PILOT_REVENUE_MODEL.md). 'proofing' (default/absent) = the photographer
+  // controls the watermark. 'rev_share' = pay-to-unlock: locked (watermarked) until paid.
+  accessModel?: "proofing" | "rev_share";
+  // Present only for rev_share groups. `locked` is the flag the UI gates on; `payToken` (the public
+  // payment link) is surfaced to the owner only.
+  revShare?: { locked: boolean; unlockedAt: string | null; payToken?: string | null };
   // Logical folders for organising photos (web). Ordered by creation.
   folders?: StudioFolder[];
+};
+
+// Owner-only payment-link details for a rev_share group, from GET /trips/:id/payment-link. `price`
+// is null (and needsAdminPrice true) when the event is above the top tier with no admin override.
+export type GroupPaymentLink = {
+  accessModel: "rev_share";
+  locked: boolean;
+  payToken: string;
+  storageUsedBytes: number;
+  price: { amountPaise: number; currency: string; tierLabel: string } | null;
+  needsAdminPrice: boolean;
+};
+
+// Public (unauthenticated) status for the /pay page, from GET /billing/group/:token/status.
+export type PublicPayStatus = {
+  title: string;
+  photographerName: string;
+  logoUrl: string | null; // signed studio logo for the pay page; null when the photographer set none
+  state: "locked" | "unlocked";
+  amountPaise: number | null;
+  currency: string;
+  tierLabel: string | null;
+  needsPrice: boolean;
 };
 
 export type StudioPhoto = {
@@ -154,6 +186,9 @@ export type AdminOwnerRow = {
   quotaBytes: number | null; // null = unlimited — effective storage limit (plan or override)
   quotaPct: number;
   plan: string; // 'free' | 'essential' | 'pro' | 'premium'
+  // Event-group billing model (admin-set). 'annual' (default) = proofing; 'rev_share' = pay-to-unlock.
+  // Optional so an older API response can't crash the table (treated as 'annual' when absent).
+  eventBillingMode?: "annual" | "rev_share";
   guestsReached: number; // total unique guests (current state)
   watermarkEvents: number;
   lifetimePhotosUploaded: number;
@@ -178,6 +213,11 @@ export type AdminOwnerGroup = {
   memberCount: number; // total members, including the owner/host
   guestCount: number; // of those, non-owner members
   watermark: boolean;
+  // Pay-to-unlock state. 'proofing' (default) = not a rev-share group; 'rev_share' = pay-to-unlock.
+  // `locked` is true for a rev-share group still awaiting payment. Optional so an older API response
+  // can't crash the popup (treated as proofing / unlocked when absent).
+  accessModel?: "proofing" | "rev_share";
+  locked?: boolean;
   createdAt: string;
 };
 

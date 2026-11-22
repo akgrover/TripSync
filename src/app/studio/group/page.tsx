@@ -11,6 +11,7 @@ import { getCachedMe } from "@/lib/studio/profile";
 import { hasWatermarkEntitlement, isWatermarkOn } from "@/lib/studio/watermark";
 import type { StudioTrip } from "@/lib/studio/types";
 import { GroupShare } from "@/components/studio/group-share";
+import { GroupPaywall } from "@/components/studio/group-paywall";
 import { Dialog } from "@/components/studio/dialog";
 import { SlideOver } from "@/components/studio/slide-over";
 import { GroupSettings } from "@/components/studio/group-settings";
@@ -188,6 +189,9 @@ function GroupDetail() {
             </p>
           ) : null}
 
+          {/* Pay-to-unlock panel (owner-only): lock state, price, and the shareable payment link. */}
+          {trip.isOwner && trip.accessModel === "rev_share" ? <GroupPaywall trip={trip} /> : null}
+
           <div className="mt-8 flex flex-wrap items-center gap-2">
             <button type="button" onClick={() => selectFolder(null)} className={folderChipClass(!currentFolder)}>
               All photos
@@ -308,7 +312,11 @@ function GroupDetail() {
               onChange={setTrip}
               open={guestOpen}
               onClose={() => setGuestOpen(false)}
-              showAccessControls={isWatermarkOn(trip) && canWatermark}
+              // Pay-to-unlock groups unlock for everyone on payment, so there's no per-guest access to
+              // grant — show a plain roster. Per-member access is only for the proofing model.
+              showAccessControls={
+                isWatermarkOn(trip) && canWatermark && trip.accessModel !== "rev_share"
+              }
             />
           ) : null}
         </div>

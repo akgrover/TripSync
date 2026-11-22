@@ -90,6 +90,9 @@ export function GroupSettings({
   const [error, setError] = useState<string | null>(null);
 
   const isEvent = trip.storageMode === "single_payer";
+  // Pay-to-unlock groups: the watermark is platform-managed (on until paid), so we hide the manual
+  // watermark controls entirely. Everything else in this panel still applies.
+  const managedWatermark = trip.accessModel === "rev_share";
   const everyoneSees = (trip.photoVisibility ?? "everyone") === "everyone";
   const membersCanUpload = trip.allowMemberUploads ?? false;
   const watermarkOn = isWatermarkOn(trip);
@@ -210,7 +213,7 @@ export function GroupSettings({
             doesn't include watermarking and it's currently off, it's shown locked (Pro) rather than
             hidden. If it's somehow on without the entitlement, we keep it interactive so you can
             still turn it off. */}
-        {isEvent ? (
+        {isEvent && !managedWatermark ? (
           <ToggleRow
             title="Watermark photos for guests"
             description={
@@ -240,7 +243,7 @@ export function GroupSettings({
         />
       </div>
 
-      {isEvent && canWatermark && watermarkOn ? (
+      {isEvent && !managedWatermark && canWatermark && watermarkOn ? (
         <div className="flex items-center justify-between gap-4 border-t border-slate-100 px-5 py-4">
           <div>
             <p className="text-sm font-medium text-slate-900">Re-apply watermark</p>

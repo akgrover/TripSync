@@ -35,9 +35,24 @@ export function GroupCard({ trip, onOpen }: { trip: StudioTrip; onOpen: () => vo
               <ImageOff className="h-8 w-8" />
             </div>
           )}
-          <span className="absolute left-3 top-3 rounded-full bg-slate-900/70 px-2.5 py-1 text-xs font-medium text-white">
-            {isEvent ? "Event" : "Shared"}
-          </span>
+          {/* Badges grouped top-left as one set. Both use the same dark translucent pill; the
+              pay-to-unlock status carries a small colored dot instead of a competing fill, so a
+              photographer sees at a glance which events are still locked. */}
+          <div className="absolute left-3 top-3 flex items-center gap-1.5">
+            <span className="rounded-full bg-slate-900/70 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
+              {isEvent ? "Event" : "Shared"}
+            </span>
+            {trip.accessModel === "rev_share" ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-900/70 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    trip.revShare?.locked ? "bg-amber-400" : "bg-emerald-400"
+                  }`}
+                />
+                {trip.revShare?.locked ? "Locked" : "Unlocked"}
+              </span>
+            ) : null}
+          </div>
         </div>
         <div className="flex items-center justify-between gap-2 px-4 pt-3">
           <div className="min-w-0">

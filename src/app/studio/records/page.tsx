@@ -11,6 +11,8 @@ import {
   ImageIcon,
   Info,
   Loader2,
+  Lock,
+  LockOpen,
   RefreshCw,
   ShieldCheck,
   Trash2,
@@ -94,6 +96,11 @@ export default function RecordsPage() {
   const [confirmText, setConfirmText] = useState("");
   const [deletingGroupId, setDeletingGroupId] = useState<string | null>(null);
   const [groupError, setGroupError] = useState<string | null>(null);
+  // Pay-to-unlock admin actions (inside the Groups popup / detail popup).
+  const [unlockingGroupId, setUnlockingGroupId] = useState<string | null>(null);
+  const [savingPriceId, setSavingPriceId] = useState<string | null>(null);
+  const [billingBusyId, setBillingBusyId] = useState<string | null>(null);
+  const [billingError, setBillingError] = useState<string | null>(null);
   // Ignore out-of-order responses when the window is switched quickly.
   const reqRef = useRef(0);
   // Same guard for the per-owner groups fetch (opening another row supersedes the previous one).
@@ -172,6 +179,82 @@ export default function RecordsPage() {
       );
     } finally {
       setDeletingGroupId(null);
+    }
+  }
+
+  // Switch a photographer between the annual (proofing) and pay-to-unlock (rev-share) models. Updates
+  // the table row + the open detail popup in place.
+  async function toggleBillingMode(owner: AdminOwnerRow) {
+    if (billingBusyId) {
+      return;
+    }
+    const next = (owner.eventBillingMode ?? "annual") === "rev_share" ? "annual" : "rev_share";
+    setBillingBusyId(owner.id);
+    setBillingError(null);
+    try {
+      const res = await studioApi.adminSetBillingMode({ userId: owner.id, mode: next });
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              owners: prev.owners.map((o) =>
+                o.id === owner.id ? { ...o, eventBillingMode: res.eventBillingMode } : o,
+              ),
+            }
+          : prev,
+      );
+      setDetailRow((prev) =>
+        prev && prev.id === owner.id ? { ...prev, eventBillingMode: res.eventBillingMode } : prev,
+      );
+    } catch (err) {
+      setBillingError(
+        err instanceof ApiError ? err.message : "Couldn't change the billing model. Please try again.",
+      );
+    } finally {
+      setBillingBusyId(null);
+    }
+  }
+
+  // Force-unlock a rev-share group with no payment (first-event-free / comp). Flips `locked` in the
+  // cached list so the popup reflects it immediately.
+  async function forceUnlockGroup(ownerId: string, group: AdminOwnerGroup) {
+    if (unlockingGroupId) {
+      return;
+    }
+    setUnlockingGroupId(group.id);
+    setGroupError(null);
+    try {
+      await studioApi.adminForceUnlockGroup(group.id);
+      setGroupsCache((prev) => ({
+        ...prev,
+        [ownerId]: (prev[ownerId] ?? []).map((it) =>
+          it.id === group.id ? { ...it, locked: false } : it,
+        ),
+      }));
+    } catch (err) {
+      setGroupError(
+        err instanceof ApiError ? err.message : "Couldn't unlock that group. Please try again.",
+      );
+    } finally {
+      setUnlockingGroupId(null);
+    }
+  }
+
+  // Set or clear a rev-share group's price override (paise; null clears back to the storage tiers).
+  async function setGroupPrice(group: AdminOwnerGroup, priceOverridePaise: number | null) {
+    if (savingPriceId) {
+      return;
+    }
+    setSavingPriceId(group.id);
+    setGroupError(null);
+    try {
+      await studioApi.adminSetGroupPrice(group.id, priceOverridePaise);
+    } catch (err) {
+      setGroupError(
+        err instanceof ApiError ? err.message : "Couldn't set the price. Please try again.",
+      );
+    } finally {
+      setSavingPriceId(null);
     }
   }
 
@@ -557,6 +640,35 @@ export default function RecordsPage() {
                 </li>
               </ul>
             </div>
+            {/* Event billing model (annual proofing vs pay-to-unlock). Switching affects NEW groups. */}
+            <div>
+              <p className="mb-1.5 text-xs font-medium text-slate-500">Event billing model</p>
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-slate-900">
+                    {(detailRow.eventBillingMode ?? "annual") === "rev_share"
+                      ? "Pay-to-unlock"
+                      : "Annual (proofing)"}
+                  </p>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    Applies to groups created from now on. Existing groups keep their own setting.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void toggleBillingMode(detailRow)}
+                  disabled={billingBusyId === detailRow.id}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                >
+                  {billingBusyId === detailRow.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {(detailRow.eventBillingMode ?? "annual") === "rev_share"
+                    ? "Switch to Annual"
+                    : "Switch to Pay-to-unlock"}
+                </button>
+              </div>
+              {billingError ? <p className="mt-1.5 text-xs text-red-600">{billingError}</p> : null}
+            </div>
+
             {/* Raw object for quick copy / unambiguous reading. */}
             <pre className="max-h-48 overflow-auto rounded-xl bg-slate-900 p-3 text-xs leading-relaxed text-slate-100">
               {JSON.stringify(
@@ -577,12 +689,15 @@ export default function RecordsPage() {
       >
         {groupsOwner ? (
           <GroupsPopupBody
+            key={groupsOwner.id}
             groups={groupsCache[groupsOwner.id]}
             status={groupsStatus}
             armedGroupId={armedGroupId}
             confirmText={confirmText}
             deletingGroupId={deletingGroupId}
             groupError={groupError}
+            unlockingGroupId={unlockingGroupId}
+            savingPriceId={savingPriceId}
             onRetry={() => openGroups(groupsOwner)}
             onArm={(id) => {
               setArmedGroupId(id);
@@ -596,6 +711,8 @@ export default function RecordsPage() {
             }}
             onConfirmTextChange={setConfirmText}
             onDelete={(g) => void deleteGroup(groupsOwner.id, g)}
+            onForceUnlock={(g) => void forceUnlockGroup(groupsOwner.id, g)}
+            onSetPrice={(g, paise) => void setGroupPrice(g, paise)}
           />
         ) : null}
       </Dialog>
@@ -615,11 +732,15 @@ function GroupsPopupBody({
   confirmText,
   deletingGroupId,
   groupError,
+  unlockingGroupId,
+  savingPriceId,
   onRetry,
   onArm,
   onCancel,
   onConfirmTextChange,
   onDelete,
+  onForceUnlock,
+  onSetPrice,
 }: {
   groups: AdminOwnerGroup[] | undefined;
   status: "idle" | "loading" | "error";
@@ -627,12 +748,21 @@ function GroupsPopupBody({
   confirmText: string;
   deletingGroupId: string | null;
   groupError: string | null;
+  unlockingGroupId: string | null;
+  savingPriceId: string | null;
   onRetry: () => void;
   onArm: (groupId: string) => void;
   onCancel: () => void;
   onConfirmTextChange: (value: string) => void;
   onDelete: (group: AdminOwnerGroup) => void;
+  onForceUnlock: (group: AdminOwnerGroup) => void;
+  onSetPrice: (group: AdminOwnerGroup, priceOverridePaise: number | null) => void;
 }) {
+  // Local UI state for the pay-to-unlock actions (kept local since they don't touch the parent's
+  // request-guard refs; the component is keyed by owner so it resets when another owner opens).
+  const [armedUnlockId, setArmedUnlockId] = useState<string | null>(null);
+  const [priceEditId, setPriceEditId] = useState<string | null>(null);
+  const [priceInput, setPriceInput] = useState("");
   if (!groups) {
     if (status === "error") {
       return (
@@ -703,6 +833,118 @@ function GroupsPopupBody({
                   ) : null}
                 </div>
               </div>
+
+              {/* Pay-to-unlock controls (rev-share groups only): lock state, force-unlock, price. */}
+              {g.accessModel === "rev_share" ? (
+                <div className="mt-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                        g.locked
+                          ? "bg-amber-50 text-amber-700"
+                          : "bg-emerald-50 text-emerald-700"
+                      }`}
+                    >
+                      {g.locked ? (
+                        <>
+                          <Lock className="h-3 w-3" /> Locked
+                        </>
+                      ) : (
+                        <>
+                          <LockOpen className="h-3 w-3" /> Unlocked
+                        </>
+                      )}
+                    </span>
+                    {g.locked ? (
+                      <button
+                        type="button"
+                        onClick={() => setArmedUnlockId(armedUnlockId === g.id ? null : g.id)}
+                        className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                      >
+                        Unlock (free)
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPriceEditId(priceEditId === g.id ? null : g.id);
+                        setPriceInput("");
+                      }}
+                      className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                    >
+                      Price override
+                    </button>
+                  </div>
+
+                  {armedUnlockId === g.id && g.locked ? (
+                    <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                      <p className="text-xs text-amber-800">
+                        Unlock this event for <strong>everyone</strong> without a payment (free /
+                        comp)? The photos become downloadable immediately.
+                      </p>
+                      <div className="mt-2 flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setArmedUnlockId(null)}
+                          disabled={unlockingGroupId === g.id}
+                          className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onForceUnlock(g)}
+                          disabled={unlockingGroupId === g.id}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:opacity-60"
+                        >
+                          {unlockingGroupId === g.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                          Unlock free
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {priceEditId === g.id ? (
+                    <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-xs text-slate-600">
+                        Fixed unlock price for this event (₹). Overrides the storage tiers. Leave empty
+                        and press Clear to go back to automatic pricing.
+                      </p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-sm text-slate-500">₹</span>
+                        <input
+                          value={priceInput}
+                          onChange={(e) => setPriceInput(e.target.value.replace(/[^0-9]/g, ""))}
+                          inputMode="numeric"
+                          placeholder="e.g. 4999"
+                          className="w-28 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const rupees = Number(priceInput);
+                            if (!Number.isFinite(rupees) || rupees <= 0) return;
+                            onSetPrice(g, Math.round(rupees * 100));
+                          }}
+                          disabled={savingPriceId === g.id || Number(priceInput) <= 0}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
+                        >
+                          {savingPriceId === g.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onSetPrice(g, null)}
+                          disabled={savingPriceId === g.id}
+                          className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
 
               {armed ? (
                 <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3">

@@ -81,3 +81,34 @@ export async function startPlanCheckout(plan: string): Promise<CheckoutOutcome> 
     rz.open();
   });
 }
+
+// Public pay-to-unlock checkout, run from the /pay page by an UN-LOGGED-IN client. Unlike the plan
+// checkout, there's no authed verify step — the provider webhook is the source of truth and unlocks
+// the group server-side, so the page polls the public status endpoint after a "success" here. Resolves
+// "success" when the widget reports the payment, "dismissed" if the client closes it.
+export async function startGroupUnlockCheckout(payToken: string): Promise<CheckoutOutcome> {
+  const info = await studioApi.createGroupCheckout(payToken);
+  if (info.provider !== "razorpay") {
+    throw new Error("This payment method isn't supported in the web app yet.");
+  }
+  const loaded = await loadRazorpay();
+  if (!loaded || !window.Razorpay) {
+    throw new Error("Couldn't load the payment window. Check your connection and try again.");
+  }
+
+  return new Promise<CheckoutOutcome>((resolve) => {
+    const rz = new window.Razorpay!({
+      key: info.keyId,
+      order_id: info.orderId,
+      amount: info.amountPaise,
+      currency: info.currency,
+      name: "TripSync",
+      description: info.label,
+      // No verify call (the payer isn't authenticated). The webhook unlocks the group; the page polls
+      // status to confirm. We resolve "success" so the page starts polling immediately.
+      handler: () => resolve("success"),
+      modal: { ondismiss: () => resolve("dismissed") },
+    });
+    rz.open();
+  });
+}

@@ -8,9 +8,11 @@ import type {
   AdminWindow,
   AuthResponse,
   CheckoutInfo,
+  GroupPaymentLink,
   PhotosPage,
   PlanOffer,
   PublicEvent,
+  PublicPayStatus,
   StudioTrip,
   StudioUser,
 } from "./types";
@@ -266,6 +268,19 @@ export const studioApi = {
   // Owner-only: create a logical folder for organising photos; returns the refreshed trip.
   createFolder: (tripId: string, name: string) =>
     request<{ trip: StudioTrip }>(`/trips/${tripId}/folders`, { method: "POST", body: { name } }),
+  // Owner-only: the pay-to-unlock payment link + a live price preview for a rev_share event group.
+  getPaymentLink: (tripId: string) =>
+    request<GroupPaymentLink>(`/trips/${tripId}/payment-link`),
+  // Public (unauthenticated) pay page: a client opens the shared link and pays without an account.
+  getPublicPayStatus: (payToken: string) =>
+    request<PublicPayStatus>(`/billing/group/${encodeURIComponent(payToken)}/status`, {
+      auth: false,
+    }),
+  createGroupCheckout: (payToken: string) =>
+    request<CheckoutInfo>(`/billing/group/${encodeURIComponent(payToken)}/checkout`, {
+      method: "POST",
+      auth: false,
+    }),
   // Owner-only: permanently delete the group and all its photos.
   deleteGroup: (tripId: string) => request<void>(`/trips/${tripId}`, { method: "DELETE" }),
   // Remove a photo for everyone in the group (owner or the photo's uploader).
@@ -344,6 +359,27 @@ export const studioApi = {
   // everyone. The caller gates this behind a type-to-confirm dialog.
   adminDeleteGroup: (tripId: string) =>
     request<{ deleted: boolean; id: string }>(`/admin/trips/${tripId}/delete`, { method: "POST" }),
+  // Switch a photographer's event-group billing model. 'rev_share' makes their NEW groups
+  // pay-to-unlock; 'annual' is the existing proofing model. Identify by userId / phone / email.
+  adminSetBillingMode: (body: {
+    userId?: string;
+    phone?: string;
+    email?: string;
+    mode: "annual" | "rev_share";
+  }) =>
+    request<{ id: string; name: string; eventBillingMode: "annual" | "rev_share" }>(
+      "/admin/owners/billing-mode",
+      { method: "POST", body },
+    ),
+  // Force-unlock a rev-share group without a payment (first-event-free / comp / offline-paid).
+  adminForceUnlockGroup: (tripId: string) =>
+    request<{ unlocked: boolean; id: string }>(`/admin/trips/${tripId}/unlock`, { method: "POST" }),
+  // Set or clear a rev-share group's price override (paise). null clears it (back to the tier table).
+  adminSetGroupPrice: (tripId: string, priceOverridePaise: number | null) =>
+    request<{ id: string; title: string; priceOverridePaise: number | null }>(
+      `/admin/trips/${tripId}/price`,
+      { method: "POST", body: { priceOverridePaise } },
+    ),
   getAdminFlags: () => request<{ flags: AdminFlag[] }>("/admin/flags"),
   setAdminFlag: (key: string, enabled: boolean) =>
     request<{ flags: AdminFlag[] }>("/admin/flags", { method: "POST", body: { key, enabled } }),
