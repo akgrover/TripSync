@@ -861,7 +861,7 @@ function GroupsPopupBody({
                         onClick={() => setArmedUnlockId(armedUnlockId === g.id ? null : g.id)}
                         className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
                       >
-                        Unlock (free)
+                        Mark paid / unlock
                       </button>
                     ) : null}
                     <button
@@ -879,8 +879,9 @@ function GroupsPopupBody({
                   {armedUnlockId === g.id && g.locked ? (
                     <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
                       <p className="text-xs text-amber-800">
-                        Unlock this event for <strong>everyone</strong> without a payment (free /
-                        comp)? The photos become downloadable immediately.
+                        Unlock this event for <strong>everyone</strong> without a TripSync payment —
+                        use this when the photographer was <strong>paid offline</strong>, or to comp
+                        the event. Guests can download the full-resolution photos immediately.
                       </p>
                       <div className="mt-2 flex justify-end gap-2">
                         <button
@@ -898,7 +899,7 @@ function GroupsPopupBody({
                           className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:opacity-60"
                         >
                           {unlockingGroupId === g.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                          Unlock free
+                          Unlock event
                         </button>
                       </div>
                     </div>
