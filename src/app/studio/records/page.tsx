@@ -30,6 +30,7 @@ import type {
 } from "@/lib/studio/types";
 import { Dialog } from "@/components/studio/dialog";
 import { FeatureFlagsPanel } from "@/components/studio/feature-flags-panel";
+import { WithdrawalsPanel } from "@/components/studio/withdrawals-panel";
 
 type SortKey =
   | "name"
@@ -406,6 +407,9 @@ export default function RecordsPage() {
         Uploaded photos and new photographers reflect {windowLabel(win).toLowerCase()}; storage,
         quota, groups, guests and lifetime are current totals.
       </p>
+
+      {/* Rev-share withdrawal requests (self-contained; hidden when there are none) */}
+      <WithdrawalsPanel />
 
       {/* Owners table */}
       <div className="shadow-card mt-8 overflow-x-auto rounded-2xl border border-slate-200 bg-white">

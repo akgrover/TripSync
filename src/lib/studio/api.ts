@@ -6,6 +6,7 @@ import type {
   AdminOverview,
   AdminOwnerGroup,
   AdminWindow,
+  AdminWithdrawalRow,
   AuthResponse,
   CheckoutInfo,
   GroupPaymentLink,
@@ -16,6 +17,7 @@ import type {
   StudioEarnings,
   StudioTrip,
   StudioUser,
+  StudioWithdrawal,
 } from "./types";
 
 export class ApiError extends Error {
@@ -187,6 +189,13 @@ export const studioApi = {
     request<{ user: StudioUser }>("/me", { method: "PATCH", body: { role } }),
   // Pay-to-unlock earnings for the signed-in photographer (rev_share). Read-only.
   getEarnings: () => request<StudioEarnings>("/billing/earnings"),
+  // Request a withdrawal of the full available balance. Body carries only the confirmed/updated UPI;
+  // the amount is computed server-side. Returns the created request.
+  requestWithdrawal: (upiId: string) =>
+    request<{ withdrawal: StudioWithdrawal }>("/billing/withdrawals", {
+      method: "POST",
+      body: { upiId },
+    }),
   // Set the photographer company/studio name ('' or null clears it).
   setCompanyName: (companyName: string | null) =>
     request<{ user: StudioUser }>("/me", { method: "PATCH", body: { companyName } }),
@@ -387,6 +396,22 @@ export const studioApi = {
       `/admin/trips/${tripId}/price`,
       { method: "POST", body: { priceOverridePaise } },
     ),
+  // Rev-share withdrawals (admin settlement). List (optionally by status), then settle (mark paid) or
+  // reject. See docs/PILOT_REVENUE_MODEL.md §11b.
+  adminListWithdrawals: (status?: "requested" | "paid" | "rejected") =>
+    request<{ withdrawals: AdminWithdrawalRow[] }>(
+      `/admin/withdrawals${status ? `?status=${status}` : ""}`,
+    ),
+  adminSettleWithdrawal: (id: string, body: { reference?: string; adminNote?: string }) =>
+    request<{ withdrawal: { id: string; status: string } }>(`/admin/withdrawals/${id}/settle`, {
+      method: "POST",
+      body,
+    }),
+  adminRejectWithdrawal: (id: string, body: { adminNote?: string }) =>
+    request<{ withdrawal: { id: string; status: string } }>(`/admin/withdrawals/${id}/reject`, {
+      method: "POST",
+      body,
+    }),
   getAdminFlags: () => request<{ flags: AdminFlag[] }>("/admin/flags"),
   setAdminFlag: (key: string, enabled: boolean) =>
     request<{ flags: AdminFlag[] }>("/admin/flags", { method: "POST", body: { key, enabled } }),

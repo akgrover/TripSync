@@ -58,6 +58,18 @@ export type StudioUser = {
   eventBillingMode?: "annual" | "rev_share";
 };
 
+// A photographer's withdrawal request (rev_share), from GET /billing/earnings.
+export type StudioWithdrawal = {
+  id: string;
+  amountPaise: number;
+  currency: string;
+  status: "requested" | "paid" | "rejected";
+  payoutUpiId: string;
+  requestedAt: string;
+  settledAt: string | null;
+  reference: string | null;
+};
+
 // Pay-to-unlock earnings for a photographer (rev_share), from GET /billing/earnings. All amounts in
 // paise. GROSS collected (what clients paid) — not net of any out-of-band revenue share.
 export type StudioEarnings = {
@@ -69,6 +81,25 @@ export type StudioEarnings = {
   events: { tripId: string; title: string; amountPaise: number; paidAt: string }[];
   // rev_share groups unlocked without a TripSync payment (free first event / comp / paid offline).
   offlineUnlockCount: number;
+  // The owner's saved payout UPI (prefill for the withdraw dialog), and their request history.
+  payoutUpiId: string | null;
+  withdrawals: StudioWithdrawal[];
+};
+
+// Admin view of a withdrawal request, from GET /admin/withdrawals.
+export type AdminWithdrawalRow = {
+  id: string;
+  ownerId: string;
+  ownerName: string;
+  ownerPhone: string;
+  amountPaise: number;
+  currency: string;
+  status: "requested" | "paid" | "rejected";
+  payoutUpiId: string;
+  requestedAt: string;
+  settledAt: string | null;
+  reference: string | null;
+  adminNote: string | null;
 };
 
 export type AuthResponse = {
