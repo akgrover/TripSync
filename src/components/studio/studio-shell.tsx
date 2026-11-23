@@ -3,16 +3,18 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Camera, Home, LifeBuoy, LogOut, Settings, User } from "lucide-react";
+import { Camera, Home, LifeBuoy, LogOut, Settings, User, Wallet } from "lucide-react";
 
 import { clearTokens, getAccessToken } from "@/lib/studio/auth";
 import { clearCachedMe, getCachedMe } from "@/lib/studio/profile";
 
-const NAV = [
+const NAV_BASE = [
   { href: "/studio", label: "Home", icon: Home },
   { href: "/studio/profile", label: "Profile", icon: User },
   { href: "/studio/settings", label: "Settings", icon: Settings },
 ];
+// Earnings is shown only to pay-to-unlock (rev_share) photographers. Inserted before Settings.
+const EARNINGS_ITEM = { href: "/studio/earnings", label: "Earnings", icon: Wallet };
 
 // Client-side auth gate + chrome for the Studio portal. The login route renders bare (no gate, no
 // header); every other /studio route requires a token or bounces to /studio/login.
@@ -33,6 +35,8 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
   const [userName, setUserName] = useState<string | null>(null);
   // Plan label for the badge by the logo (shown only for paid plans).
   const [planLabel, setPlanLabel] = useState<string | null>(null);
+  // Pay-to-unlock photographers get the Earnings tab.
+  const [showEarnings, setShowEarnings] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time client-only auth read on mount
@@ -55,6 +59,7 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
         setUserName(user.name);
         // Show the plan badge only for a paid plan (free → no badge).
         setPlanLabel(user.plan && user.plan !== "free" ? (user.planLabel ?? user.plan) : null);
+        setShowEarnings(user.eventBillingMode === "rev_share");
       })
       .catch(() => undefined);
     return () => {
@@ -92,13 +97,19 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Profile/Settings own their own subtrees; Home owns everything else under /studio (incl. groups).
+  // Profile/Settings/Earnings own their own subtrees; Home owns everything else under /studio
+  // (incl. groups).
+  const nav = showEarnings
+    ? [NAV_BASE[0], NAV_BASE[1], EARNINGS_ITEM, NAV_BASE[2]]
+    : NAV_BASE;
   const current = (pathname ?? "").replace(/\/+$/, "");
   const activeHref = current.startsWith("/studio/settings")
     ? "/studio/settings"
     : current.startsWith("/studio/profile")
       ? "/studio/profile"
-      : "/studio";
+      : current.startsWith("/studio/earnings")
+        ? "/studio/earnings"
+        : "/studio";
 
   return (
     <div className="bg-studio flex min-h-dvh">
@@ -120,7 +131,7 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
           ) : null}
         </Link>
         <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-          {NAV.map((item) => {
+          {nav.map((item) => {
             const active = item.href === activeHref;
             return (
               <Link
@@ -179,7 +190,7 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
             Studio
           </Link>
           <div className="flex items-center gap-1">
-            {NAV.map((item) => {
+            {nav.map((item) => {
               const active = item.href === activeHref;
               return (
                 <Link

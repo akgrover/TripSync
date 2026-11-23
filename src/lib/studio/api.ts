@@ -13,6 +13,7 @@ import type {
   PlanOffer,
   PublicEvent,
   PublicPayStatus,
+  StudioEarnings,
   StudioTrip,
   StudioUser,
 } from "./types";
@@ -184,6 +185,8 @@ export const studioApi = {
   // access is still governed by isHost / entitlements server-side.
   setRole: (role: "photographer" | "guest") =>
     request<{ user: StudioUser }>("/me", { method: "PATCH", body: { role } }),
+  // Pay-to-unlock earnings for the signed-in photographer (rev_share). Read-only.
+  getEarnings: () => request<StudioEarnings>("/billing/earnings"),
   // Set the photographer company/studio name ('' or null clears it).
   setCompanyName: (companyName: string | null) =>
     request<{ user: StudioUser }>("/me", { method: "PATCH", body: { companyName } }),

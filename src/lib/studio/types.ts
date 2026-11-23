@@ -58,6 +58,19 @@ export type StudioUser = {
   eventBillingMode?: "annual" | "rev_share";
 };
 
+// Pay-to-unlock earnings for a photographer (rev_share), from GET /billing/earnings. All amounts in
+// paise. GROSS collected (what clients paid) — not net of any out-of-band revenue share.
+export type StudioEarnings = {
+  currency: string;
+  totalCollectedPaise: number;
+  withdrawnPaise: number;
+  pendingPaise: number;
+  availablePaise: number;
+  events: { tripId: string; title: string; amountPaise: number; paidAt: string }[];
+  // rev_share groups unlocked without a TripSync payment (free first event / comp / paid offline).
+  offlineUnlockCount: number;
+};
+
 export type AuthResponse = {
   user: StudioUser;
   accessToken: string;
