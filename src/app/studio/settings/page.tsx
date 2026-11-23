@@ -91,12 +91,13 @@ export default function StudioSettingsPage() {
   const watermarkDirty =
     watermark.trim() !== (user?.watermarkText ?? "") ||
     opacity !== (user?.watermarkOpacity ?? DEFAULT_OPACITY);
-  // The watermark section is host-only (you own an event group). We show it to EVERY host, even
-  // without the paid entitlement: saving the style (text/opacity) is allowed server-side and primes
-  // the preset, so an owner can set it up before upgrading. When the plan doesn't include
-  // watermarking we show an upsell note instead of hiding the whole section. `!== false` safe-defaults
-  // an older /me payload to shown.
-  const isHostUser = user?.isHost !== false;
+  // The watermark section is for photographers. We show it to anyone who owns an event group
+  // (`isHost`) AND to anyone who declared the "photographer" role at sign-up but hasn't created a
+  // group yet — saving the style (text/opacity) is allowed server-side and primes the preset, so
+  // they can set it up up front and it's ready for their first event. Guests don't see it. We show
+  // it to EVERY photographer even without the paid entitlement (an upsell note replaces hiding the
+  // section). `isHost !== false` safe-defaults an older /me payload (no isHost) to shown.
+  const isHostUser = user?.role === "photographer" || user?.isHost !== false;
   const watermarkEntitled = hasWatermarkEntitlement(user);
   // Pay-to-unlock photographers: the watermark is applied automatically (on until the event is paid)
   // and doesn't depend on the plan's watermark feature — so the copy + the Pro upsell differ.
