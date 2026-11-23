@@ -120,6 +120,12 @@ function AlbumInner() {
   // when there's no face profile yet — so Google guests (who arrive with a name) still get the
   // optional selfie up front. Returning guests who skipped it aren't re-prompted.
   async function routeAfterAuth(u: StudioUser): Promise<void> {
+    // Anyone arriving through an album link is a guest — record it (fire-and-forget) so they're
+    // never asked to pick a role if they later open the studio login page. The album itself never
+    // prompts for a role; this only cleans up the data.
+    if (u.needsRole) {
+      void studioApi.setRole("guest").catch(() => {});
+    }
     if (u.needsName || (!u.hasReferenceSelfie && !hasSeenSetup(u.id))) {
       setPhase("setup");
       return;

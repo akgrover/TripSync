@@ -180,6 +180,10 @@ export const studioApi = {
   // Set the display name (used for first-time sign-ups, same as the mobile app's onboarding).
   updateName: (name: string) =>
     request<{ user: StudioUser }>("/me", { method: "PATCH", body: { name } }),
+  // Record the self-declared account role (first-time web onboarding). Not a permission — Studio
+  // access is still governed by isHost / entitlements server-side.
+  setRole: (role: "photographer" | "guest") =>
+    request<{ user: StudioUser }>("/me", { method: "PATCH", body: { role } }),
   // Set the photographer company/studio name ('' or null clears it).
   setCompanyName: (companyName: string | null) =>
     request<{ user: StudioUser }>("/me", { method: "PATCH", body: { companyName } }),

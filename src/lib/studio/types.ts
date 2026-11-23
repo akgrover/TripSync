@@ -34,6 +34,12 @@ export type StudioUser = {
   // True until the user has picked a real display name (phone sign-ups start on a placeholder).
   // We ask first-time users for their name before sending them into the portal.
   needsName?: boolean;
+  // Self-declared account intent, picked once at first web sign-in. 'photographer' lands in Studio;
+  // 'guest' is an event attendee. null when undeclared and not a host. NOT a permission.
+  role?: "photographer" | "guest" | null;
+  // True when the web should ask the user to pick a role (undeclared AND not already a host).
+  // Only ever acted on at /studio/login — the album flow never asks.
+  needsRole?: boolean;
   // Default watermark text for this photographer's events (falls back to their name when empty).
   watermarkText?: string;
   // Watermark text opacity (0.1–0.6); null when unset (uses the default).
