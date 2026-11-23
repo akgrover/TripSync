@@ -78,12 +78,12 @@ export function BrandingImage({
   }
 
   return (
-    <div>
-      <label className="mb-1 block text-sm font-medium text-slate-700">{label}</label>
-      <div className="flex items-start gap-4">
+    <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4">
+      <label className="mb-3 block text-sm font-semibold text-slate-800">{label}</label>
+      <div className="flex flex-col items-start gap-4 sm:flex-row">
         <div
-          className={`flex shrink-0 items-center justify-center overflow-hidden border border-slate-200 bg-slate-50 ${
-            kind === "logo" ? "h-20 w-20 rounded-xl" : "h-20 w-36 rounded-lg"
+          className={`flex shrink-0 items-center justify-center overflow-hidden border border-slate-200 bg-white shadow-sm ${
+            kind === "logo" ? "h-24 w-24 rounded-2xl" : "aspect-[16/7] w-full rounded-xl sm:w-44"
           }`}
         >
           {currentUrl ? (
@@ -99,7 +99,7 @@ export function BrandingImage({
               type="button"
               onClick={() => inputRef.current?.click()}
               disabled={busy !== null}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60"
             >
               {busy === "upload" ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
               {currentUrl ? "Replace" : "Upload"}
@@ -109,14 +109,14 @@ export function BrandingImage({
                 type="button"
                 onClick={() => void remove()}
                 disabled={busy !== null}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-slate-500 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-60"
               >
                 {busy === "remove" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                 Remove
               </button>
             ) : null}
           </div>
-          <p className="mt-1.5 text-xs text-slate-400">{hint}</p>
+          <p className="mt-2 max-w-md text-xs leading-5 text-slate-400">{hint}</p>
           {error ? <p className="mt-1.5 text-sm text-red-600">{error}</p> : null}
         </div>
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Loader2 } from "lucide-react";
+import { Building2, Check, Fingerprint, Link2, Loader2, Sparkles, UserRound } from "lucide-react";
 
 import { studioApi, ApiError } from "@/lib/studio/api";
 import { clearTokens } from "@/lib/studio/auth";
@@ -166,36 +166,52 @@ export default function StudioProfilePage() {
   const phoneDirty = studioPhone.trim() !== (user?.studioPhone ?? "");
 
   return (
-    <div className="max-w-5xl">
-      <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Profile</h1>
-      <p className="mt-1 text-slate-500">Your account, face profile, and studio branding.</p>
+    <div>
+      <header className="max-w-2xl">
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-teal-200/70 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-800">
+          <Sparkles className="h-3.5 w-3.5" />
+          Identity &amp; brand
+        </div>
+        <h1 className="text-3xl font-bold tracking-[-0.035em] text-slate-950 sm:text-4xl">Profile</h1>
+        <p className="mt-2 text-base leading-7 text-slate-500">
+          Manage how you sign in, how TripSync finds you, and how clients see your studio.
+        </p>
+      </header>
 
       {/* Personal vs Studio — your identity and account on one tab, guest-facing branding on the other. */}
-      <div className="shadow-card mt-6 inline-flex rounded-xl border border-slate-200 bg-white p-1">
+      <div className="mt-8 inline-flex rounded-2xl border border-slate-200/80 bg-white p-1.5 shadow-sm" role="tablist" aria-label="Profile sections">
         {([
-          { id: "personal", label: "Personal" },
-          { id: "studio", label: "Studio" },
+          { id: "personal", label: "Personal", icon: UserRound },
+          { id: "studio", label: "Studio brand", icon: Building2 },
         ] as const).map((t) => (
           <button
             key={t.id}
             type="button"
             onClick={() => setTab(t.id)}
-            aria-pressed={tab === t.id}
-            className={`rounded-lg px-4 py-1.5 text-sm font-medium transition ${
-              tab === t.id ? "bg-brand text-white shadow-sm" : "text-slate-600 hover:bg-slate-50"
+            role="tab"
+            aria-selected={tab === t.id}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${
+              tab === t.id ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:bg-slate-50"
             }`}
           >
+            <t.icon className="h-4 w-4" />
             {t.label}
           </button>
         ))}
       </div>
 
       {tab === "personal" ? (
-        <div className="max-w-2xl">
+        <div className="mt-7 grid items-start gap-5 lg:grid-cols-2">
           {/* Account */}
-          <section className="shadow-card mt-6 rounded-2xl border border-slate-200 bg-white">
-            <div className="border-b border-slate-100 px-5 py-3">
-              <h2 className="text-sm font-semibold text-slate-900">Account</h2>
+          <section className="shadow-card overflow-hidden rounded-[1.35rem] border border-slate-200/80 bg-white">
+            <div className="flex items-start gap-3 border-b border-slate-100 px-5 py-4">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-700">
+                <UserRound className="h-5 w-5" />
+              </span>
+              <div>
+                <h2 className="font-bold text-slate-950">Account details</h2>
+                <p className="mt-0.5 text-sm text-slate-500">Your private TripSync identity.</p>
+              </div>
             </div>
             <div className="space-y-4 p-5">
               <div>
@@ -208,7 +224,7 @@ export default function StudioProfilePage() {
                       setName(e.target.value);
                     }}
                     maxLength={80}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                    className="studio-input"
                   />
                   <SaveButton
                     dirty={name.trim().length >= 2 && name.trim() !== (user?.name ?? "")}
@@ -221,20 +237,22 @@ export default function StudioProfilePage() {
               {user?.phone ? (
                 <div>
                   <label className="mb-1 block text-sm font-medium text-slate-700">Phone</label>
-                  <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-sm text-slate-500">{user.phone}</p>
+                  <p className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-500">{user.phone}</p>
                 </div>
               ) : null}
             </div>
           </section>
 
           {/* Face profile */}
-          <section className="shadow-card mt-6 rounded-2xl border border-slate-200 bg-white">
-            <div className="border-b border-slate-100 px-5 py-3">
-              <h2 className="text-sm font-semibold text-slate-900">Face profile</h2>
-              <p className="mt-0.5 text-sm text-slate-500">
-                A selfie TripSync matches against event photos to find the ones you&apos;re in. Stored
-                privately and only used for matching.
-              </p>
+          <section className="shadow-card overflow-hidden rounded-[1.35rem] border border-slate-200/80 bg-white">
+            <div className="flex items-start gap-3 border-b border-slate-100 px-5 py-4">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-700">
+                <Fingerprint className="h-5 w-5" />
+              </span>
+              <div>
+                <h2 className="font-bold text-slate-950">Face profile</h2>
+                <p className="mt-0.5 text-sm text-slate-500">Private matching profile for finding your photos.</p>
+              </div>
             </div>
             <div className="p-5">
               <SelfieCapture user={user} onUpdated={applyUser} />
@@ -243,12 +261,15 @@ export default function StudioProfilePage() {
 
           {/* Sign-in methods */}
           {GOOGLE_CLIENT_ID ? (
-            <section className="shadow-card mt-6 rounded-2xl border border-slate-200 bg-white">
-              <div className="border-b border-slate-100 px-5 py-3">
-                <h2 className="text-sm font-semibold text-slate-900">Sign-in methods</h2>
-                <p className="mt-0.5 text-sm text-slate-500">
-                  Connect another way to sign in so you&apos;re never locked out.
-                </p>
+            <section className="shadow-card overflow-hidden rounded-[1.35rem] border border-slate-200/80 bg-white lg:col-span-2">
+              <div className="flex items-start gap-3 border-b border-slate-100 px-5 py-4">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                  <Link2 className="h-5 w-5" />
+                </span>
+                <div>
+                  <h2 className="font-bold text-slate-950">Sign-in methods</h2>
+                  <p className="mt-0.5 text-sm text-slate-500">Keep a second way into your account.</p>
+                </div>
               </div>
               <div className="p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -282,16 +303,19 @@ export default function StudioProfilePage() {
           ) : null}
         </div>
       ) : (
-        <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="mt-7 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_390px]">
           {/* Studio branding form */}
-          <section className="shadow-card rounded-2xl border border-slate-200 bg-white">
-            <div className="border-b border-slate-100 px-5 py-3">
-              <h2 className="text-sm font-semibold text-slate-900">Studio branding</h2>
-              <p className="mt-0.5 text-sm text-slate-500">
-                Optional. Used to brand the pages and posters you share with guests.
-              </p>
+          <section className="shadow-card overflow-hidden rounded-[1.35rem] border border-slate-200/80 bg-white">
+            <div className="flex items-start gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
+                <Building2 className="h-5 w-5" />
+              </span>
+              <div>
+                <h2 className="font-bold text-slate-950">Studio identity</h2>
+                <p className="mt-0.5 text-sm text-slate-500">Shown on albums, payment pages, and share posters.</p>
+              </div>
             </div>
-            <div className="space-y-5 p-5">
+            <div className="space-y-6 p-5 sm:p-6">
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">Company / studio name</label>
                 <div className="flex gap-2">
@@ -303,7 +327,7 @@ export default function StudioProfilePage() {
                     }}
                     maxLength={60}
                     placeholder="e.g. Lumina Studio"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                    className="studio-input"
                   />
                   <SaveButton
                     dirty={companyDirty}
@@ -328,7 +352,7 @@ export default function StudioProfilePage() {
                     inputMode="tel"
                     maxLength={20}
                     placeholder="+91 98765 43210"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                    className="studio-input"
                   />
                   <SaveButton
                     dirty={phoneDirty}
@@ -365,7 +389,7 @@ export default function StudioProfilePage() {
 
           {/* Live preview on the right (sticky on desktop) — mirrors the guest album / pay page, so
               the form has room to breathe and the right-hand space is put to use. */}
-          <div className="lg:sticky lg:top-6">
+          <div className="xl:sticky xl:top-6">
             <BrandingPreview
               companyName={company}
               studioPhone={studioPhone}

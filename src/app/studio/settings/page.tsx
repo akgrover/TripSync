@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Stamp } from "lucide-react";
+import { ShieldCheck, Sparkles, Stamp } from "lucide-react";
 
 import { studioApi, ApiError } from "@/lib/studio/api";
 import { SaveButton } from "@/components/studio/save-button";
@@ -104,28 +104,39 @@ export default function StudioSettingsPage() {
   const isRevShare = user?.eventBillingMode === "rev_share";
 
   return (
-    <div className="max-w-4xl">
-      <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Settings</h1>
-      <p className="mt-1 text-slate-500">
-        How your photos are presented. Your name, face profile, and branding live in{" "}
-        <span className="font-medium text-slate-700">Profile</span>.
-      </p>
+    <div>
+      <header className="max-w-2xl">
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-teal-200/70 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-800">
+          <Sparkles className="h-3.5 w-3.5" />
+          Delivery preferences
+        </div>
+        <h1 className="text-3xl font-bold tracking-[-0.035em] text-slate-950 sm:text-4xl">Settings</h1>
+        <p className="mt-2 text-base leading-7 text-slate-500">
+          Set your default photo protection once and preview exactly what clients will see.
+        </p>
+      </header>
 
       {/* Watermark */}
       {isHostUser ? (
-        <section className="shadow-card mt-8 rounded-2xl border border-slate-200 bg-white">
-          <div className="flex items-start gap-3 border-b border-slate-100 px-5 py-4">
-            <span className="bg-brand flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-sm">
+        <section className="shadow-card mt-8 overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-white">
+          <div className="flex flex-col gap-4 border-b border-slate-100 px-5 py-5 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+            <div className="flex items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
               <Stamp className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <h2 className="text-sm font-semibold text-slate-900">Watermark</h2>
-              <p className="mt-0.5 text-sm text-slate-500">
+              <h2 className="font-bold text-slate-950">Watermark protection</h2>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">
                 {isRevShare
-                  ? "On your pay-to-unlock events, guests see this text tiled across every photo until the event is paid. It's applied automatically — you don't switch it on per event."
-                  : "When you turn on watermarking for an event, guests see this text tiled across each photo until you give them access. Turn it on per event in the group's settings."}
+                  ? "Applied automatically to pay-to-unlock events until payment is complete."
+                  : "Use this preset whenever you enable watermarking inside an event."}
               </p>
             </div>
+            </div>
+            <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              {isRevShare ? "Automatic" : "Preset ready"}
+            </span>
           </div>
           {!watermarkEntitled && !isRevShare ? (
             <p className="border-b border-slate-100 bg-amber-50 px-5 py-2.5 text-xs text-amber-700">
@@ -134,9 +145,9 @@ export default function StudioSettingsPage() {
               applies once you upgrade.
             </p>
           ) : null}
-          <div className="grid grid-cols-1 gap-6 p-5 md:grid-cols-2">
+          <div className="grid grid-cols-1 items-start gap-8 p-5 sm:p-6 lg:grid-cols-[minmax(0,0.82fr)_minmax(420px,1.18fr)] lg:p-8">
             {/* Controls */}
-            <div className="space-y-5">
+            <div className="space-y-6">
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">Watermark text</label>
                 <input
@@ -147,7 +158,7 @@ export default function StudioSettingsPage() {
                   }}
                   placeholder={watermarkPlaceholder}
                   maxLength={40}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                  className="studio-input"
                 />
                 <p className="mt-1.5 text-xs text-slate-400">
                   Leave empty to use your name ({watermarkPlaceholder}).
@@ -167,11 +178,16 @@ export default function StudioSettingsPage() {
                   max={0.6}
                   step={0.05}
                   value={opacity}
+                  style={
+                    {
+                      "--range-fill": `${((opacity - 0.1) / 0.5) * 100}%`,
+                    } as React.CSSProperties
+                  }
                   onChange={(e) => {
                     setWatermarkSaved(false);
                     setOpacity(Number(e.target.value));
                   }}
-                  className="w-full accent-teal-600"
+                  className="studio-range w-full"
                 />
                 <p className="mt-1.5 text-xs text-slate-400">
                   Higher is harder to crop out; lower shows the photo more clearly.
@@ -198,16 +214,26 @@ export default function StudioSettingsPage() {
             </div>
 
             {/* Live preview */}
-            <div>
-              <p className="mb-1.5 text-sm font-medium text-slate-700">Preview</p>
-              <div className="shadow-card overflow-hidden rounded-xl ring-1 ring-slate-200">
+            <div className="lg:sticky lg:top-6">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">Client preview</p>
+                  <p className="mt-0.5 text-xs text-slate-400">Updates while you edit.</p>
+                </div>
+                <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-500 shadow-sm">
+                  {Math.round(opacity * 100)}% opacity
+                </span>
+              </div>
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.45)]">
                 <WatermarkPreview
                   text={watermark.trim() || watermarkPlaceholder}
                   opacity={opacity}
                   imageUrl={user?.coverUrl}
                 />
               </div>
-              <p className="mt-2 text-xs text-slate-400">A sample photo — your watermark, tiled.</p>
+              <p className="mt-3 text-xs leading-5 text-slate-400">
+                Preview only. New photos use the saved style; existing photos can be re-applied from the event.
+              </p>
             </div>
           </div>
         </section>

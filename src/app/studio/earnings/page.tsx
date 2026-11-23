@@ -48,8 +48,26 @@ export default function StudioEarningsPage() {
   }
 
   useEffect(() => {
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount; load is stable enough
+    let active = true;
+    void (async () => {
+      try {
+        const res = await studioApi.getEarnings();
+        if (!active) return;
+        setData(res);
+        setStatus("ready");
+      } catch (err) {
+        if (!active) return;
+        if (err instanceof ApiError && err.status === 401) {
+          clearTokens();
+          window.location.replace("/studio/login");
+          return;
+        }
+        setStatus("error");
+      }
+    })();
+    return () => {
+      active = false;
+    };
   }, []);
 
   if (status === "loading") {
@@ -99,17 +117,16 @@ export default function StudioEarningsPage() {
 
   return (
     <div className="max-w-4xl">
-      <div className="flex items-start gap-3">
-        <span className="bg-brand flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-sm">
-          <Wallet className="h-5 w-5" />
-        </span>
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Earnings</h1>
-          <p className="mt-1 text-slate-500">
-            What you&apos;ve collected through TripSync from your pay-to-unlock events.
-          </p>
+      <header className="max-w-2xl">
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-teal-200/70 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-800">
+          <Wallet className="h-3.5 w-3.5" />
+          Payouts
         </div>
-      </div>
+        <h1 className="text-3xl font-bold tracking-[-0.035em] text-slate-950 sm:text-4xl">Earnings</h1>
+        <p className="mt-2 text-base leading-7 text-slate-500">
+          What you&apos;ve collected through TripSync from your pay-to-unlock events.
+        </p>
+      </header>
 
       {/* Summary */}
       <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -152,7 +169,7 @@ export default function StudioEarningsPage() {
       {/* Per-event breakdown */}
       <h2 className="mt-8 text-sm font-semibold text-slate-900">By event</h2>
       {hasEvents ? (
-        <div className="shadow-card mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div className="shadow-card mt-3 overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-white">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
@@ -175,7 +192,7 @@ export default function StudioEarningsPage() {
           </table>
         </div>
       ) : (
-        <div className="mt-3 rounded-2xl border border-dashed border-slate-200 p-8 text-center">
+        <div className="mt-3 rounded-[1.5rem] border border-dashed border-slate-200 p-8 text-center">
           <span className="bg-studio mx-auto flex h-12 w-12 items-center justify-center rounded-2xl text-teal-600">
             <IndianRupee className="h-6 w-6" />
           </span>
@@ -199,7 +216,7 @@ export default function StudioEarningsPage() {
       {data.withdrawals.length > 0 ? (
         <>
           <h2 className="mt-8 text-sm font-semibold text-slate-900">Withdrawals</h2>
-          <div className="shadow-card mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <div className="shadow-card mt-3 overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-white">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
@@ -245,7 +262,7 @@ export default function StudioEarningsPage() {
           placeholder="name@bank"
           maxLength={256}
           autoFocus
-          className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+          className="studio-input"
         />
         <p className="mt-1.5 text-xs text-slate-400">
           Double-check this — we pay out to exactly this UPI id.
@@ -310,8 +327,8 @@ function StatCard({
 }) {
   return (
     <div
-      className={`shadow-card rounded-2xl border p-5 ${
-        accent ? "bg-brand border-transparent text-white" : "border-slate-200 bg-white"
+      className={`shadow-card rounded-[1.5rem] border p-5 ${
+        accent ? "bg-brand border-transparent text-white" : "border-slate-200/80 bg-white"
       }`}
     >
       <p className={`text-xs font-medium ${accent ? "text-white/80" : "text-slate-400"}`}>{label}</p>

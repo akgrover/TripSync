@@ -103,8 +103,8 @@ export function WithdrawalsPanel() {
   const history = rows.filter((r) => r.status !== "requested");
 
   return (
-    <section className="shadow-card mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-      <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-4">
+    <section className="shadow-card mt-8 overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-white">
+      <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-5 sm:px-6">
         <Wallet className="h-4 w-4 text-teal-600" />
         <h2 className="text-base font-semibold text-slate-900">Withdrawals</h2>
         {pending.length > 0 ? (
@@ -231,7 +231,7 @@ export function WithdrawalsPanel() {
                   onChange={(e) => setReference(e.target.value)}
                   placeholder="e.g. UTR 123456789012"
                   maxLength={140}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                  className="studio-input"
                 />
               </>
             ) : null}
@@ -243,7 +243,7 @@ export function WithdrawalsPanel() {
               value={note}
               onChange={(e) => setNote(e.target.value)}
               maxLength={500}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+              className="studio-input"
             />
 
             {actionError ? <p className="mt-2 text-sm text-red-600">{actionError}</p> : null}

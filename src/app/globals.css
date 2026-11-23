@@ -131,15 +131,76 @@ body {
 
 /* Soft studio backdrop: off-white with a faint teal glow top-right, so large areas don't read flat. */
 .bg-studio {
-  background-color: #f8fafc;
-  background-image: radial-gradient(70% 55% at 100% 0%, rgba(20, 184, 166, 0.07) 0%, rgba(20, 184, 166, 0) 60%);
+  background-color: #f5f8f7;
+  background-image:
+    radial-gradient(70% 55% at 100% 0%, rgba(20, 184, 166, 0.09) 0%, rgba(20, 184, 166, 0) 60%),
+    linear-gradient(rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
+}
+
+.studio-sidebar {
+  background-color: #073b3a;
+  background-image:
+    radial-gradient(circle at 0% 0%, rgba(45, 212, 191, 0.18), transparent 38%),
+    linear-gradient(180deg, #0b4946 0%, #063331 100%);
+  box-shadow: 18px 0 45px -35px rgba(2, 44, 42, 0.8);
+}
+
+.studio-input {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 0.75rem;
+  border: 1px solid #dbe3e6;
+  background: #fff;
+  padding: 0.625rem 0.75rem;
+  color: #0f172a;
+  font-size: 0.875rem;
+  outline: none;
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    background-color 0.16s ease;
+}
+.studio-input::placeholder {
+  color: #94a3b8;
+}
+.studio-input:hover {
+  border-color: #cbd5e1;
+}
+.studio-input:focus {
+  border-color: #14b8a6;
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.13);
+}
+
+.studio-range {
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(to right, #0f9f91 0%, #0f9f91 var(--range-fill, 50%), #dbe3e6 var(--range-fill, 50%), #dbe3e6 100%);
+  cursor: pointer;
+}
+.studio-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 3px solid #fff;
+  border-radius: 999px;
+  background: #0f766e;
+  box-shadow: 0 2px 8px rgba(15, 118, 110, 0.35);
+}
+.studio-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 3px solid #fff;
+  border-radius: 999px;
+  background: #0f766e;
+  box-shadow: 0 2px 8px rgba(15, 118, 110, 0.35);
 }
 
 /* Consistent soft elevation for cards, and a lift on interactive ones. */
 .shadow-card {
   box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.04),
-    0 2px 6px rgba(15, 23, 42, 0.05);
+    0 1px 2px rgba(15, 23, 42, 0.035),
+    0 10px 32px -24px rgba(15, 23, 42, 0.32);
 }
 .lift {
   transition:

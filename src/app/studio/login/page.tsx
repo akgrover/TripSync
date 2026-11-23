@@ -230,6 +230,9 @@ export default function StudioLoginPage() {
     if (!clean) {
       return;
     }
+    // Full load (not router.push) so the album route mounts fresh with the just-set auth, same as
+    // enterStudio above.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- see above
     window.location.assign(`/album/?code=${encodeURIComponent(clean)}`);
   }
 

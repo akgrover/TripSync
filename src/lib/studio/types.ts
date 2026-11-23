@@ -56,6 +56,9 @@ export type StudioUser = {
   // Event-group billing model (admin-set). 'annual' (default) = proofing; 'rev_share' =
   // pay-to-unlock. Drives mode-aware copy in Settings. Optional so an older /me can't crash the UI.
   eventBillingMode?: "annual" | "rev_share";
+  // True once the user has collected any pay-to-unlock payment. Shows the Earnings tab regardless of
+  // billing mode, so a balance stays reachable even if they're moved off rev_share.
+  hasRevShareEarnings?: boolean;
 };
 
 // A photographer's withdrawal request (rev_share), from GET /billing/earnings.

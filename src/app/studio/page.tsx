@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { FolderPlus, Loader2, LogIn, RefreshCw } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { FolderPlus, Loader2, LogIn, RefreshCw, Search, Sparkles } from "lucide-react";
 
 import { studioApi, ApiError } from "@/lib/studio/api";
 import { clearTokens } from "@/lib/studio/auth";
@@ -24,6 +24,21 @@ export default function StudioHomePage() {
   const [busy, setBusy] = useState(false);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [firstName, setFirstName] = useState("");
+  const [query, setQuery] = useState("");
+  const [view, setView] = useState<"all" | "owned" | "shared">("all");
+
+  const filteredTrips = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return trips.filter((trip) => {
+      const matchesView =
+        view === "all" || (view === "owned" ? trip.isOwner : !trip.isOwner);
+      const matchesQuery =
+        !needle ||
+        trip.title.toLowerCase().includes(needle) ||
+        trip.inviteCode?.toLowerCase().includes(needle);
+      return matchesView && matchesQuery;
+    });
+  }, [query, trips, view]);
 
   useEffect(() => {
     let active = true;
@@ -102,14 +117,20 @@ export default function StudioHomePage() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+      <header className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+        <div className="max-w-2xl">
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-teal-200/70 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-800">
+            <Sparkles className="h-3.5 w-3.5" />
+            Studio overview
+          </div>
+          <h1 className="text-3xl font-bold tracking-[-0.035em] text-slate-950 sm:text-4xl">
             {firstName ? `Welcome back, ${firstName}` : "Your groups"}
           </h1>
-          <p className="mt-1 text-slate-500">Create an event group or join one, then upload photos.</p>
+          <p className="mt-2 max-w-xl text-base leading-7 text-slate-500">
+            Keep every event moving—from first upload to final delivery.
+          </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <button
             type="button"
             onClick={() => {
@@ -117,7 +138,7 @@ export default function StudioHomePage() {
               setDialogError(null);
               setCreateOpen(true);
             }}
-            className="bg-brand inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
+            className="bg-brand inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-[0_10px_24px_-12px_rgba(13,148,136,0.9)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-14px_rgba(13,148,136,0.95)]"
           >
             <FolderPlus className="h-4 w-4" />
             Create group
@@ -129,25 +150,67 @@ export default function StudioHomePage() {
               setDialogError(null);
               setJoinOpen(true);
             }}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
           >
             <LogIn className="h-4 w-4" />
             Join by code
           </button>
         </div>
-      </div>
+      </header>
 
       {status === "ready" ? <StudioStats trips={trips} /> : null}
 
-      <div className="mt-8">
+      <section className="mt-10" aria-labelledby="events-heading">
+        <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h2 id="events-heading" className="text-xl font-bold tracking-tight text-slate-950">
+              Events &amp; shared groups
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">Open an event to upload, share, and manage delivery.</p>
+          </div>
+          {trips.length > 0 ? (
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+                {([
+                  ["all", "All"],
+                  ["owned", "My events"],
+                  ["shared", "Shared"],
+                ] as const).map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setView(id)}
+                    aria-pressed={view === id}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                      view === id ? "bg-slate-900 text-white" : "text-slate-500 hover:bg-slate-50"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <label className="relative block">
+                <span className="sr-only">Search events</span>
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search events"
+                  className="min-h-10 w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-100 sm:w-52"
+                />
+              </label>
+            </div>
+          ) : null}
+        </div>
         {status === "loading" ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => (
               <div
                 key={i}
-                className="shadow-card overflow-hidden rounded-2xl border border-slate-200 bg-white"
+                className="shadow-card overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white"
               >
-                <div className="skeleton aspect-[16/9] w-full" />
+                <div className="skeleton aspect-[16/10] w-full" />
                 <div className="space-y-2 p-4">
                   <div className="skeleton h-4 w-2/3 rounded" />
                   <div className="skeleton h-3 w-1/3 rounded" />
@@ -165,7 +228,7 @@ export default function StudioHomePage() {
             Couldn&apos;t load your groups. Retry.
           </button>
         ) : trips.length === 0 ? (
-          <div className="shadow-card flex flex-col items-center rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
+          <div className="shadow-card flex flex-col items-center rounded-[1.5rem] border border-dashed border-slate-300 bg-white p-10 text-center sm:p-14">
             <span className="bg-brand mb-4 flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-sm">
               <FolderPlus className="h-7 w-7" />
             </span>
@@ -187,14 +250,20 @@ export default function StudioHomePage() {
               Create group
             </button>
           </div>
+        ) : filteredTrips.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 p-10 text-center">
+            <Search className="mx-auto h-6 w-6 text-slate-300" />
+            <p className="mt-3 font-semibold text-slate-800">No matching events</p>
+            <p className="mt-1 text-sm text-slate-500">Try a different search or filter.</p>
+          </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {trips.map((trip) => (
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            {filteredTrips.map((trip) => (
               <GroupCard key={trip.id} trip={trip} onOpen={() => openGroup(trip.id)} />
             ))}
           </div>
         )}
-      </div>
+      </section>
 
       <Dialog open={createOpen} onClose={() => !busy && setCreateOpen(false)} title="Create event group">
         <label className="mb-1 block text-sm font-medium text-slate-700">Group name</label>

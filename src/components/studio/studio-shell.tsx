@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Camera, Home, LifeBuoy, LogOut, Settings, User, Wallet } from "lucide-react";
+import { Camera, Headphones, Home, LogOut, Settings, User, Wallet } from "lucide-react";
 
 import { clearTokens, getAccessToken } from "@/lib/studio/auth";
 import { clearCachedMe, getCachedMe } from "@/lib/studio/profile";
@@ -33,6 +33,7 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
 
   const [auth, setAuth] = useState<"checking" | "in" | "out">("checking");
   const [userName, setUserName] = useState<string | null>(null);
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
   // Plan label for the badge by the logo (shown only for paid plans).
   const [planLabel, setPlanLabel] = useState<string | null>(null);
   // Pay-to-unlock photographers get the Earnings tab.
@@ -57,9 +58,12 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
       .then((user) => {
         if (!active) return;
         setUserName(user.name);
+        setUserAvatar(user.avatarUrl ?? null);
         // Show the plan badge only for a paid plan (free → no badge).
         setPlanLabel(user.plan && user.plan !== "free" ? (user.planLabel ?? user.plan) : null);
-        setShowEarnings(user.eventBillingMode === "rev_share");
+        // Shown to rev_share photographers, and to anyone who has collected earnings (so a balance
+        // stays reachable even if they're later moved off rev_share).
+        setShowEarnings(user.eventBillingMode === "rev_share" || Boolean(user.hasRevShareEarnings));
       })
       .catch(() => undefined);
     return () => {
@@ -77,6 +81,7 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
     clearTokens();
     clearCachedMe();
     setUserName(null);
+    setUserAvatar(null);
     setPlanLabel(null);
     setAuth("out");
     router.replace("/studio/login");
@@ -115,107 +120,134 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
     <div className="bg-studio flex min-h-dvh">
       {/* Desktop left sidebar — sticky full-height so the footer (identity + sign out) stays pinned
           while the main content scrolls. */}
-      <aside className="sticky top-0 hidden h-dvh w-56 shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
+      <aside className="studio-sidebar sticky top-0 hidden h-dvh w-64 shrink-0 flex-col md:flex">
         <Link
           href="/studio"
-          className="flex h-14 shrink-0 items-center gap-2 border-b border-slate-100 px-4 font-semibold text-slate-900"
+          className="flex h-20 shrink-0 items-center gap-3 border-b border-white/10 px-5 font-semibold text-white"
         >
-          <span className="bg-brand flex h-7 w-7 shrink-0 items-center justify-center rounded-xl text-white shadow-sm">
-            <Camera className="h-4 w-4" />
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-teal-800 shadow-lg shadow-black/10">
+            <Camera className="h-5 w-5" />
           </span>
-          <span className="truncate tracking-tight">TripSync Studio</span>
-          {planLabel ? (
-            <span className="shrink-0 rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-teal-700">
-              {planLabel}
+          <span className="min-w-0">
+            <span className="block truncate tracking-tight">TripSync</span>
+            <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-100/60">
+              Studio workspace
             </span>
-          ) : null}
+          </span>
         </Link>
-        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+        <div className="px-5 pb-3 pt-6 text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-100/45">
+          Workspace
+        </div>
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3">
           {nav.map((item) => {
             const active = item.href === activeHref;
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
-                  active ? "bg-teal-50 text-teal-700" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+                  active
+                    ? "bg-white text-teal-950 shadow-sm"
+                    : "text-teal-50/70 hover:bg-white/8 hover:text-white"
                 }`}
               >
-                <item.icon className="h-4 w-4" />
+                <span
+                  className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${
+                    active ? "bg-teal-100 text-teal-800" : "bg-white/6 text-teal-50/70 group-hover:bg-white/10"
+                  }`}
+                >
+                  <item.icon className="h-4 w-4" />
+                </span>
+                <span className="flex-1">{item.label}</span>
+                {item.href === "/studio/earnings" && planLabel ? (
+                  <span className="rounded-full bg-emerald-300/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-100">
+                    {planLabel}
+                  </span>
+                ) : null}
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="shrink-0 border-t border-white/10 p-3">
+          <a
+            href="tel:+918789330638"
+            className="mb-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-teal-50/70 transition hover:bg-white/8 hover:text-white"
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/6">
+              <Headphones className="h-4 w-4 shrink-0" />
+            </span>
+            <span className="min-w-0 leading-tight">
+              Help &amp; support
+              <span className="mt-0.5 block text-[11px] font-normal text-teal-100/45">+91 87893 30638</span>
+            </span>
+          </a>
+          {userName ? (
+            <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/6 p-2.5">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-teal-200 text-xs font-bold text-teal-950">
+                {userAvatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- signed user avatar URL
+                  <img src={userAvatar} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  (userName.trim()[0] ?? "?").toUpperCase()
+                )}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-white">{userName}</p>
+                <p className="text-[11px] text-teal-100/50">Studio account</p>
+              </div>
+              <button
+                type="button"
+                onClick={signOut}
+                aria-label="Sign out"
+                title="Sign out"
+                className="ml-auto rounded-lg p-2 text-teal-50/55 transition hover:bg-white/10 hover:text-white"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Mobile top bar + thumb-friendly bottom navigation. */}
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-slate-200/80 bg-white/90 px-4 py-3 backdrop-blur-xl md:hidden">
+          <Link href="/studio" className="flex items-center gap-2 font-semibold text-slate-900">
+            <span className="bg-brand flex h-8 w-8 items-center justify-center rounded-xl text-white shadow-sm">
+              <Camera className="h-4 w-4" />
+            </span>
+            TripSync <span className="font-medium text-slate-400">Studio</span>
+          </Link>
+          <button
+            type="button"
+            onClick={signOut}
+            aria-label="Sign out"
+            className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 shadow-sm"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
+        </header>
+        <main className="mx-auto w-full max-w-[1440px] flex-1 px-4 pb-28 pt-6 sm:px-6 md:pb-12 md:pt-10 lg:px-10 xl:px-12">
+          {children}
+        </main>
+        <nav className="fixed inset-x-3 bottom-3 z-40 flex items-center justify-around rounded-2xl border border-slate-200/80 bg-white/95 p-1.5 shadow-[0_18px_50px_-18px_rgba(15,23,42,0.45)] backdrop-blur-xl md:hidden">
+          {nav.map((item) => {
+            const active = item.href === activeHref;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-label={item.label}
+                className={`flex min-w-16 flex-col items-center gap-1 rounded-xl px-2 py-2 text-[11px] font-semibold transition ${
+                  active ? "bg-teal-50 text-teal-800" : "text-slate-400"
+                }`}
+              >
+                <item.icon className="h-5 w-5" />
                 {item.label}
               </Link>
             );
           })}
         </nav>
-        <div className="shrink-0 border-t border-slate-100 p-3">
-          {userName ? (
-            <div className="mb-1 flex items-center gap-2.5 px-3 py-2">
-              <span className="bg-brand flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white shadow-sm">
-                {(userName.trim()[0] ?? "?").toUpperCase()}
-              </span>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-slate-900">{userName}</p>
-                <p className="text-xs text-slate-400">Signed in</p>
-              </div>
-            </div>
-          ) : null}
-          <a
-            href="tel:+918789330638"
-            className="mb-1 flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
-          >
-            <LifeBuoy className="h-4 w-4 shrink-0" />
-            <span className="min-w-0 leading-tight">
-              Support
-              <span className="block text-xs font-normal text-slate-400">+91 87893 30638</span>
-            </span>
-          </a>
-          <button
-            type="button"
-            onClick={signOut}
-            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
-          >
-            <LogOut className="h-4 w-4" />
-            Sign out
-          </button>
-        </div>
-      </aside>
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        {/* Mobile top bar (sidebar is hidden below md) */}
-        <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-200 bg-white/90 px-4 py-2.5 backdrop-blur md:hidden">
-          <Link href="/studio" className="flex items-center gap-2 font-semibold text-slate-900">
-            <span className="bg-brand flex h-7 w-7 items-center justify-center rounded-xl text-white shadow-sm">
-              <Camera className="h-4 w-4" />
-            </span>
-            Studio
-          </Link>
-          <div className="flex items-center gap-1">
-            {nav.map((item) => {
-              const active = item.href === activeHref;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  aria-label={item.label}
-                  className={`rounded-lg p-2 transition ${
-                    active ? "bg-teal-50 text-teal-700" : "text-slate-500 hover:bg-slate-100"
-                  }`}
-                >
-                  <item.icon className="h-5 w-5" />
-                </Link>
-              );
-            })}
-            <button
-              type="button"
-              onClick={signOut}
-              aria-label="Sign out"
-              className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100"
-            >
-              <LogOut className="h-5 w-5" />
-            </button>
-          </div>
-        </header>
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>
       </div>
     </div>
   );

@@ -26,12 +26,12 @@ export function SaveButton({
       type="button"
       onClick={onClick}
       disabled={!dirty || saving}
-      className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+      className={`inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
         dirty
-          ? "bg-brand text-white shadow-sm hover:opacity-95"
+          ? "bg-slate-900 text-white shadow-sm hover:bg-slate-800"
           : showSaved
-            ? "bg-teal-50 text-teal-700"
-            : "cursor-default bg-slate-100 text-slate-400"
+            ? "bg-emerald-50 text-emerald-700"
+            : "cursor-default border border-slate-200 bg-slate-50 text-slate-400"
       }`}
     >
       {saving ? (

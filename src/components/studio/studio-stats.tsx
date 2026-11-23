@@ -23,13 +23,13 @@ function StatCard({
   label: string;
 }) {
   return (
-    <div className="shadow-card flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-4">
-      <span className="bg-brand flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white shadow-sm">
+    <div className="flex min-w-0 items-center gap-3 px-5 py-4 sm:px-6">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
         {icon}
       </span>
       <div className="min-w-0">
-        <p className="text-2xl font-semibold leading-tight tracking-tight text-slate-900">{value}</p>
-        <p className="truncate text-sm text-slate-500">{label}</p>
+        <p className="text-xl font-bold leading-tight tracking-tight text-slate-950">{value}</p>
+        <p className="truncate text-xs font-medium text-slate-500">{label}</p>
       </div>
     </div>
   );
@@ -58,22 +58,24 @@ export function StudioStats({ trips }: { trips: StudioTrip[] }) {
   }
 
   return (
-    <div className="mt-6 grid gap-3 sm:grid-cols-3">
-      <StatCard
-        icon={<CalendarDays className="h-5 w-5" />}
-        value={formatCount(owned.length)}
-        label={owned.length === 1 ? "Event" : "Events"}
-      />
-      <StatCard
-        icon={<Users className="h-5 w-5" />}
-        value={formatCount(guestIds.size)}
-        label="Guests reached"
-      />
-      <StatCard
-        icon={<ImageIcon className="h-5 w-5" />}
-        value={formatCount(photosShared)}
-        label="Photos shared"
-      />
+    <div className="shadow-card mt-7 overflow-hidden rounded-2xl border border-slate-200/80 bg-white">
+      <div className="grid divide-y divide-slate-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+        <StatCard
+          icon={<CalendarDays className="h-5 w-5" />}
+          value={formatCount(owned.length)}
+          label={owned.length === 1 ? "Event managed" : "Events managed"}
+        />
+        <StatCard
+          icon={<Users className="h-5 w-5" />}
+          value={formatCount(guestIds.size)}
+          label="Guests reached"
+        />
+        <StatCard
+          icon={<ImageIcon className="h-5 w-5" />}
+          value={formatCount(photosShared)}
+          label="Photos delivered"
+        />
+      </div>
     </div>
   );
 }

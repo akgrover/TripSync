@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Check, Loader2, RefreshCw } from "lucide-react";
+import { Camera, Check, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 
 import { ApiError, putToS3, studioApi } from "@/lib/studio/api";
 import type { StudioUser } from "@/lib/studio/types";
@@ -65,8 +65,9 @@ export function SelfieCapture({
   }
 
   return (
-    <div className="flex items-center gap-4">
-      <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 ring-1 ring-slate-200">
+    <div>
+      <div className="flex items-center gap-4">
+      <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-slate-100 ring-1 ring-slate-200">
         {avatar ? (
           // eslint-disable-next-line @next/next/no-img-element -- signed S3 URL; next/image can't optimize it
           <img src={avatar} alt="Your face profile" className="h-full w-full object-cover" />
@@ -76,7 +77,7 @@ export function SelfieCapture({
       </div>
 
       <div className="min-w-0">
-        <p className="text-sm font-medium text-slate-900">
+        <p className="text-sm font-semibold text-slate-900">
           {hasSelfie ? "Face profile active" : "No face profile yet"}
         </p>
         <p className="mt-0.5 text-sm text-slate-500">
@@ -85,11 +86,14 @@ export function SelfieCapture({
             : "Add a selfie so TripSync can find the photos you're in."}
         </p>
 
+      </div>
+      </div>
+
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={busy}
-          className="mt-2 inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:opacity-60"
+          className="mt-4 inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
         >
           {busy ? (
             <>
@@ -116,6 +120,11 @@ export function SelfieCapture({
 
         {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
 
+        <p className="mt-3 flex items-start gap-1.5 text-xs leading-5 text-slate-400">
+          <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-teal-600" />
+          Stored privately and used only for face matching.
+        </p>
+
         <input
           ref={inputRef}
           type="file"
@@ -124,7 +133,6 @@ export function SelfieCapture({
           className="hidden"
           onChange={(e) => void onFile(e)}
         />
-      </div>
     </div>
   );
 }
