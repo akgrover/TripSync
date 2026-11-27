@@ -7,7 +7,7 @@ import { studioApi, ApiError } from "@/lib/studio/api";
 import { clearTokens } from "@/lib/studio/auth";
 import type { StudioPhoto } from "@/lib/studio/types";
 import { mergePhotos, refreshGallery } from "@/lib/studio/live-gallery";
-import { useUploadJobs } from "./upload-manager-provider";
+import { useUploadActive } from "./upload-manager-provider";
 import { Dialog } from "./dialog";
 
 // `reload` advances periodically as uploads land, and once more when the job finishes.
@@ -45,8 +45,8 @@ function PhotoGridContent({
   const [arrivals, setArrivals] = useState<StudioPhoto[]>([]);
   const [refreshError, setRefreshError] = useState(false);
   const gridRef = useRef<HTMLDivElement>(null);
-  const jobs = useUploadJobs();
-  const uploading = jobs.some((job) => job.tripId === tripId && job.status !== "finished");
+  const uploading = useUploadActive(tripId);
+  const seenRefresh = useRef({ reload, refreshTick });
   const sessionRef = useRef<{
     controller: AbortController;
     photos: StudioPhoto[];
@@ -54,11 +54,13 @@ function PhotoGridContent({
     nextCursor: string | null;
     busy: boolean;
     refreshAgain: boolean;
-    pendingOffset: number;
+    refreshOffset: number;
+    refreshAll: boolean;
     deleted: Set<string>;
     settleUntil: number;
+    lastRefreshAt: number;
   } | null>(null);
-  const refreshRef = useRef<() => void>(() => {});
+  const refreshRef = useRef<(all?: boolean) => void>(() => {});
 
 
   async function confirmDelete() {
@@ -70,7 +72,7 @@ function PhotoGridContent({
     setDeleting(true);
     try {
       await studioApi.deletePhotoForAll(tripId, photo.id);
-      if (sessionRef.current !== session || !session) return;
+      if (sessionRef.current !== session || !session || session.controller.signal.aborted) return;
       session.deleted.add(photo.id);
       session.photos = session.photos.filter((p) => p.id !== photo.id);
       session.arrivals = session.arrivals.filter((p) => p.id !== photo.id);
@@ -78,6 +80,7 @@ function PhotoGridContent({
       setArrivals(session.arrivals);
       setTotal((t) => Math.max(0, t - 1));
       setPendingDelete(null);
+      refreshRef.current();
     } catch {
       // Keep the photo; the dialog stays so the user can retry or cancel.
     } finally {
@@ -89,19 +92,23 @@ function PhotoGridContent({
     const session = {
       controller: new AbortController(), photos: [] as StudioPhoto[], arrivals: [] as StudioPhoto[],
       nextCursor: null as string | null, busy: false, refreshAgain: false,
-      pendingOffset: 0, deleted: new Set<string>(), settleUntil: Date.now() + 120_000,
+      refreshOffset: 0, refreshAll: false, deleted: new Set<string>(), settleUntil: Date.now() + 120_000, lastRefreshAt: 0,
     };
     sessionRef.current = session;
     let initialized = false;
     const current = () => sessionRef.current === session && !session.controller.signal.aborted;
     const fetchPage = (options: { cursor?: string; ids?: string[]; limit?: number }) =>
       studioApi.getTripPhotos(tripId, { scope: "all", folder, ...options, signal: session.controller.signal });
-    const refresh = async () => {
+    const refresh = async (all = false) => {
       if (!current()) return;
+      session.refreshAll ||= all;
       if (session.busy) { session.refreshAgain = true; return; }
       session.busy = true;
+      session.lastRefreshAt = Date.now();
+      const refreshAll = session.refreshAll;
+      session.refreshAll = false;
       try {
-        const result = await refreshGallery([...session.arrivals, ...session.photos], fetchPage, session.pendingOffset);
+        const result = await refreshGallery([...session.arrivals, ...session.photos], fetchPage, session.refreshOffset, refreshAll);
         if (!current()) return;
         const shownIds = new Set(session.photos.map((photo) => photo.id));
         const valid = (photo: StudioPhoto) => !session.deleted.has(photo.id);
@@ -112,8 +119,8 @@ function PhotoGridContent({
           session.photos = mergePhotos(session.arrivals, session.photos);
           session.arrivals = [];
         }
-        if (!initialized) session.nextCursor = result.nextCursor;
-        session.pendingOffset = result.pendingOffset;
+        if (!initialized || result.replaceCursor) session.nextCursor = result.nextCursor;
+        session.refreshOffset = result.refreshOffset;
         initialized = true;
         setPhotos(session.photos);
         setArrivals(session.arrivals);
@@ -137,30 +144,23 @@ function PhotoGridContent({
         }
       }
     };
-    refreshRef.current = () => { void refresh(); };
+    refreshRef.current = (all = false) => { void refresh(all); };
     void refresh();
     // Let asynchronous thumbnails settle after returning to a group or finishing an upload.
     const timer = window.setInterval(() => {
-      if (document.hidden || Date.now() > session.settleUntil) return;
+      if (document.hidden || Date.now() > session.settleUntil || Date.now() - session.lastRefreshAt < 4000) return;
       if ([...session.photos, ...session.arrivals].some((photo) => photo.thumbStatus === "pending")) void refresh();
     }, 5000);
     return () => { session.controller.abort(); window.clearInterval(timer); };
   }, [tripId, folder]);
 
   useEffect(() => {
+    if (seenRefresh.current.reload === reload && seenRefresh.current.refreshTick === refreshTick) return;
+    const manual = seenRefresh.current.refreshTick !== refreshTick;
+    seenRefresh.current = { reload, refreshTick };
     if (sessionRef.current) sessionRef.current.settleUntil = Date.now() + 120_000;
-    refreshRef.current();
+    refreshRef.current(manual);
   }, [reload, refreshTick]);
-
-  useEffect(() => {
-    if (!uploading) return;
-    const timer = window.setInterval(() => {
-      if (document.hidden) return;
-      if (sessionRef.current) sessionRef.current.settleUntil = Date.now() + 120_000;
-      refreshRef.current();
-    }, 5000);
-    return () => window.clearInterval(timer);
-  }, [uploading]);
 
   async function loadMore() {
     const session = sessionRef.current;

@@ -74,3 +74,12 @@ export function useUploadRevision(tripId: string | null) {
     () => 0,
   );
 }
+
+export function useUploadActive(tripId: string) {
+  const manager = useUploadManager();
+  return useSyncExternalStore(
+    manager.subscribe,
+    () => manager.getSnapshot().jobs.some((job) => job.tripId === tripId && job.status !== "finished"),
+    () => false,
+  );
+}

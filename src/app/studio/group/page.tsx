@@ -31,9 +31,15 @@ function GroupDetail() {
   const searchParams = useSearchParams();
   const id = searchParams.get("id");
   const folderParam = searchParams.get("folder");
+  return <GroupDetailContent key={id ?? "none"} id={id} folderParam={folderParam} />;
+}
+
+function GroupDetailContent({ id, folderParam }: { id: string | null; folderParam: string | null }) {
   const router = useRouter();
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [trip, setTrip] = useState<StudioTrip | null>(null);
+  const [refreshError, setRefreshError] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
   const reload = useUploadRevision(id);
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -113,6 +119,7 @@ function GroupDetail() {
         if (!active) return;
         setTrip(res.trips.find((t) => t.id === id) ?? null);
         setStatus("ready");
+        setRefreshError(false);
       } catch (err) {
         if (!active) return;
         if (err instanceof ApiError && err.status === 401) {
@@ -120,13 +127,15 @@ function GroupDetail() {
           window.location.replace("/studio/login");
           return;
         }
-        setStatus("error");
+        // A transient metadata refresh must not unmount the gallery and discard its loaded pages.
+        setStatus((previous) => previous === "ready" ? previous : "error");
+        setRefreshError(true);
       }
     })();
     return () => {
       active = false;
     };
-  }, [id, reload]);
+  }, [id, reload, refreshTick]);
 
   return (
     <div>
@@ -143,11 +152,12 @@ function GroupDetail() {
       ) : status === "loading" ? (
         <p className="mt-6 text-slate-400">Loading…</p>
       ) : status === "error" ? (
-        <p className="mt-6 text-red-600">Couldn&apos;t load this group. Please retry.</p>
+        <button type="button" onClick={() => setRefreshTick((n) => n + 1)} className="mt-6 text-red-600">Couldn&apos;t load this group. Retry</button>
       ) : !trip ? (
         <p className="mt-6 text-slate-500">This group couldn&apos;t be found.</p>
       ) : (
         <div className="mt-4">
+          {refreshError ? <button type="button" onClick={() => setRefreshTick((n) => n + 1)} className="mb-3 text-sm text-amber-700">Group details couldn&apos;t refresh. Retry</button> : null}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{trip.title}</h1>
             <div className="flex flex-wrap items-center gap-2">

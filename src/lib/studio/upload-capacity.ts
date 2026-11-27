@@ -10,12 +10,17 @@ const EXT_TO_TYPE: Record<string, string> = {
 
 // Shared by estimation and the runner so unsupported files don't consume estimated capacity.
 export function contentTypeFor(file: File): string {
-  if (file.type && file.type.startsWith("image/") && file.type !== "image/heic" && file.type !== "image/heif") return file.type;
+  if (Object.values(EXT_TO_TYPE).includes(file.type)) return file.type;
+  if (file.type && file.type !== "application/octet-stream") return "";
   return EXT_TO_TYPE[file.name.split(".").pop()?.toLowerCase() ?? ""] ?? "";
 }
 
 export function capacityProblem(capacity: UploadCapacity, files: File[]): string | undefined {
-  if (capacity.policy !== "hard") return;
+  const validLimit = (value: unknown) => value === null || (typeof value === "number" && Number.isSafeInteger(value) && value >= 0);
+  if (!capacity || !["hard", "grace"].includes(capacity.policy) || !validLimit(capacity.remainingBytes) || !validLimit(capacity.remainingPhotos)) {
+    throw new Error("The server returned an invalid capacity response. Please try again.");
+  }
+  if (capacity.policy === "grace") return;
   const accepted = files.filter((file) => contentTypeFor(file));
   const bytes = accepted.reduce((sum, file) => sum + file.size, 0);
   const issues: string[] = [];

@@ -1,6 +1,6 @@
 import type { UploadCapacity } from "./upload-capacity";
 import { API_BASE_URL } from "./config";
-import { clearTokens, getAccessToken, getRefreshToken, setTokens } from "./auth";
+import { clearTokens, getAccessToken, getRefreshToken, getSessionAccountId, setTokens } from "./auth";
 import type {
   AdminFlag,
   AdminLimitsResult,
@@ -47,7 +47,7 @@ type RequestOptions = {
 // Access tokens live ~15 min; the refresh token ~30 days. When a call 401s we silently exchange the
 // refresh token for a new access token (once, de-duped across concurrent calls) and retry — so a
 // reload or an idle tab keeps working for the full refresh-token lifetime instead of forcing login.
-let refreshInFlight: Promise<boolean> | null = null;
+let refreshInFlight: { token: string; promise: Promise<boolean> } | null = null;
 
 // True when the access token is within `bufferMs` of expiring (or already expired). Used to refresh
 // proactively BEFORE a request, so a long-running job (bulk uploads) doesn't stall on a wave of 401s
@@ -75,20 +75,26 @@ async function refreshAccessToken(): Promise<boolean> {
     clearTokens();
     return false;
   }
-  if (!refreshInFlight) {
-    refreshInFlight = (async () => {
+  if (!refreshInFlight || refreshInFlight.token !== refreshToken) {
+    const accessToken = getAccessToken();
+    const stillCurrent = () => getRefreshToken() === refreshToken && getAccessToken() === accessToken;
+    const refresh = { token: refreshToken, promise: Promise.resolve(false) };
+    refresh.promise = (async () => {
       // Retry transient failures (network / 5xx) a few times. Only a DEFINITIVE rejection (the
       // refresh token itself is invalid/expired) logs the user out — a transient blip must not nuke
       // a long upload. If all retries fail transiently we keep the tokens so a later call can recover.
       for (let attempt = 0; attempt < 3; attempt += 1) {
+        if (!stillCurrent()) return false;
         try {
           const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ refreshToken }),
           });
+          if (!stillCurrent()) return false;
           if (res.ok) {
             const data = (await res.json()) as { accessToken: string; refreshToken: string };
+            if (!stillCurrent()) return false;
             setTokens(data);
             return true;
           }
@@ -106,14 +112,22 @@ async function refreshAccessToken(): Promise<boolean> {
       }
       return false;
     })().finally(() => {
-      refreshInFlight = null;
+      if (refreshInFlight === refresh) refreshInFlight = null;
     });
+    refreshInFlight = refresh;
   }
-  return refreshInFlight;
+  return refreshInFlight.promise;
 }
 
 async function request<T>(path: string, options: RequestOptions = {}, retried = false): Promise<T> {
   options.signal?.throwIfAborted();
+  const accountId = getSessionAccountId();
+  const assertSession = () => {
+    options.signal?.throwIfAborted();
+    if (options.auth !== false && getSessionAccountId() !== accountId) {
+      throw new DOMException("The signed-in account changed.", "AbortError");
+    }
+  };
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (options.auth !== false) {
     let token = getAccessToken();
@@ -121,6 +135,7 @@ async function request<T>(path: string, options: RequestOptions = {}, retried = 
     // blips transiently we simply proceed with it and let the 401 path recover — no harm done.
     if (token && !retried && accessTokenExpiresSoon(token)) {
       await refreshAccessToken();
+      assertSession();
       token = getAccessToken() ?? token;
     }
     if (token) {
@@ -134,13 +149,19 @@ async function request<T>(path: string, options: RequestOptions = {}, retried = 
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
     signal: options.signal,
   });
+  assertSession();
 
   if (res.status === 401 && options.auth !== false) {
     // One refresh + retry before giving up. refreshAccessToken clears tokens itself ONLY when the
     // refresh token is truly dead; a transient refresh failure leaves the session intact so the next
-    // call can recover (this call still surfaces the 401 to its caller).
-    if (!retried && (await refreshAccessToken())) {
-      return request<T>(path, options, true);
+    // call can recover. Surface a transient outage as retryable, not as a forced logout.
+    if (!retried) {
+      const refreshed = await refreshAccessToken();
+      assertSession();
+      if (refreshed) return request<T>(path, options, true);
+      if (getRefreshToken()) {
+        throw new ApiError("Couldn’t renew your session. Please retry when your connection is stable.", 503);
+      }
     }
   }
 
@@ -154,13 +175,16 @@ async function request<T>(path: string, options: RequestOptions = {}, retried = 
     } catch {
       // Non-JSON error body — keep the generic message.
     }
+    assertSession();
     throw new ApiError(message, res.status, code);
   }
 
   if (res.status === 204) {
     return undefined as T;
   }
-  return (await res.json()) as T;
+  const result = (await res.json()) as T;
+  assertSession();
+  return result;
 }
 
 export const studioApi = {

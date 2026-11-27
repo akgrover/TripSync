@@ -97,7 +97,8 @@ test('live refresh catches a multi-page burst while preserving all loaded older 
   const existing = Array.from({ length: 96 }, (_, i) => photo(96 - i));
   const server = Array.from({ length: 210 }, (_, i) => photo(210 - i));
   const cursors = [];
-  const result = await refreshGallery(existing, async ({ cursor }) => {
+  const result = await refreshGallery(existing, async ({ cursor, ids }) => {
+    if (ids) return { photos: server.filter(p => ids.includes(p.id)), total: 210, nextCursor: null };
     cursors.push(cursor);
     const start = cursor ? server.findIndex(p => p.id === cursor) + 1 : 0;
     const photos = server.slice(start, start + 48);
@@ -124,4 +125,48 @@ test('thumbnail refresh is bounded, rotates pending IDs, and removes no-longer-v
   assert.equal(result.existing.length, 99);
   assert.equal(result.existing.filter(p => p.thumbUri).length, 59);
   assert.equal(result.arrivals.length, 0);
+});
+
+test('invalid capacity responses fail closed and unsupported image MIME types are skipped', () => {
+  for (const invalid of [{}, null, {policy:'hard',remainingPhotos:-1,remainingBytes:null}, {policy:'hard',remainingPhotos:1}]) {
+    assert.throws(() => capacityProblem(invalid, [file()]), /invalid capacity response/);
+  }
+  const raw = new File(['raw'], 'a.tiff', { type: 'image/tiff' });
+  assert.equal(capacityProblem({ policy: 'hard', remainingBytes: 0, remainingPhotos: 0 }, [raw]), undefined);
+});
+
+test('an empty gallery acquires a cursor when more than one page arrives', async () => {
+  const arrivals = Array.from({length:48}, (_, i) => photo(100-i));
+  const result = await refreshGallery([], async () => ({ photos: arrivals, total:100, nextCursor:arrivals.at(-1).id }));
+  assert.equal(result.replaceCursor, true);
+  assert.equal(result.nextCursor, arrivals.at(-1).id);
+});
+
+test('manual refresh reconciles deletions and expired URLs across every loaded page', async () => {
+  const existing = Array.from({length:150}, (_, i) => photo(150-i, {thumbUri:'expired'}));
+  const visible = existing.filter(p => !['00100','00001'].includes(p.id)).map(p => ({...p, thumbUri:'renewed'}));
+  const sizes = [];
+  const result = await refreshGallery(existing, async ({ids}) => {
+    if (ids) sizes.push(ids.length);
+    return {photos: ids ? visible.filter(p => ids.includes(p.id)) : visible.slice(0,48), total:148, nextCursor:ids ? null : visible[47].id};
+  }, 72, true);
+  assert.deepEqual(sizes, [60,60,30]);
+  assert.equal(result.existing.length, 148);
+  assert.ok(result.existing.every(p => p.thumbUri === 'renewed'));
+  assert.equal(result.replaceCursor, false);
+});
+
+test('queued jobs recheck capacity after earlier uploads consume the remaining slots', async () => {
+  let remaining = 3;
+  let runs = 0;
+  const manager = createUploadManager(async (_, files) => {
+    runs++;
+    remaining -= files.length;
+    return { progress: {...emptyProgress(),done:files.length}, retry:[] };
+  }, async (_, files) => capacityProblem({policy:'hard',remainingPhotos:remaining,remainingBytes:null},files));
+  manager.enqueue(target,[file(),file()]);
+  manager.enqueue(target,[file(),file()]);
+  await tick();
+  assert.equal(runs,1);
+  assert.match(manager.getSnapshot().jobs[1].capacityIssue,/room for 1 more/);
 });

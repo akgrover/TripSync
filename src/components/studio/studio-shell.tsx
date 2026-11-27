@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Camera, Gift, Headphones, Home, LogOut, Settings, User, Wallet } from "lucide-react";
 
-import { clearTokens, getAccessToken } from "@/lib/studio/auth";
+import { clearTokens, getAccessToken, STUDIO_AUTH_CHANGED } from "@/lib/studio/auth";
 import { clearCachedMe, getCachedMe } from "@/lib/studio/profile";
 
 const NAV_BASE = [
@@ -48,9 +48,16 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time client-only auth read on mount
     setAuth(getAccessToken() ? "in" : "out");
     // Keep in sync with sign-out in another tab.
-    const onStorage = () => setAuth(getAccessToken() ? "in" : "out");
+    const onStorage = () => {
+      if (!getAccessToken()) clearCachedMe();
+      setAuth(getAccessToken() ? "in" : "out");
+    };
     window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+    window.addEventListener(STUDIO_AUTH_CHANGED, onStorage);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener(STUDIO_AUTH_CHANGED, onStorage);
+    };
   }, []);
 
   // Load the signed-in user's name for the persistent sidebar identity (shared cache with Home).
