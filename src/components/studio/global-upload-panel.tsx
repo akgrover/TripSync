@@ -11,8 +11,8 @@ export function GlobalUploadPanel() {
   const jobs = useUploadJobs();
   const [expanded, setExpanded] = useState(true);
   if (!jobs.length) return null;
-  const current = jobs.find((job) => job.status === "uploading") ?? jobs.find((job) => job.retryCount > 0) ?? jobs[jobs.length - 1];
-  const activeCount = jobs.filter((job) => job.status !== "finished").length;
+  const current = jobs.find((job) => ["uploading", "pausing", "cancelling"].includes(job.status)) ?? jobs.find((job) => job.status === "paused" || job.retryCount > 0) ?? jobs[jobs.length - 1];
+  const activeCount = jobs.filter((job) => !["finished", "paused"].includes(job.status)).length;
   const outstanding = jobs.some((job) => job.status !== "finished" || job.retryCount > 0);
 
   return (
@@ -22,7 +22,7 @@ export function GlobalUploadPanel() {
         <span className="rounded-xl bg-teal-50 p-2 text-teal-700"><UploadCloud className="h-5 w-5" /></span>
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold text-slate-900">Uploads {activeCount ? `(${activeCount} active)` : ""}</span>
-          <span className="block truncate text-xs text-slate-500">{uploadStatus(current)} · {current.tripName}</span>
+          <span className="block truncate text-xs text-slate-500">{uploadStatus(current)} · {(current.progress.done + current.progress.duplicate).toLocaleString()} / {current.totalFiles.toLocaleString()} · {current.tripName}</span>
         </span>
         {expanded ? <ChevronDown className="h-4 w-4 text-slate-500" /> : <ChevronUp className="h-4 w-4 text-slate-500" />}
       </button>

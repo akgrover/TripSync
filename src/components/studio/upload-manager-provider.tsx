@@ -36,11 +36,13 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
       else window.removeEventListener("beforeunload", warnBeforeUnload);
     };
     const unsubscribe = manager.subscribe(syncGuard);
+    const watchdog = window.setInterval(() => manager.checkStalls(), 5000);
     syncGuard();
     window.addEventListener("storage", syncAccount);
     window.addEventListener(STUDIO_AUTH_CHANGED, syncAccount);
     return () => {
       unsubscribe();
+      window.clearInterval(watchdog);
       window.removeEventListener("beforeunload", warnBeforeUnload);
       window.removeEventListener("storage", syncAccount);
       window.removeEventListener(STUDIO_AUTH_CHANGED, syncAccount);
@@ -79,7 +81,7 @@ export function useUploadActive(tripId: string) {
   const manager = useUploadManager();
   return useSyncExternalStore(
     manager.subscribe,
-    () => manager.getSnapshot().jobs.some((job) => job.tripId === tripId && job.status !== "finished"),
+    () => manager.getSnapshot().jobs.some((job) => job.tripId === tripId && ["uploading", "pausing", "cancelling"].includes(job.status)),
     () => false,
   );
 }

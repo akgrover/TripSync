@@ -17,6 +17,8 @@ export type UploadProgress = {
   // Files a retry will never fix (unsupported here, 4xx, or the browser couldn't decode them).
   terminalFailed: number;
   skipped: number; // unsupported extension — filtered before upload; shown with terminalFailed
+  cancelled: number;
+  unconfirmed: number; // Interrupted while committing; the server may have saved these files.
   inFlight: number;
   retrying: boolean; // true during the automatic end-of-run retry pass
   paused: boolean; // true while uploads are paused waiting for the network to come back
@@ -31,6 +33,9 @@ export type UploadProgress = {
 export type UploadResult = {
   progress: UploadProgress;
   retry: File[];
+  paused?: boolean;
+  cancelled?: boolean;
+  unconfirmedFiles?: File[];
 };
 
 type UploadHandlers = {
@@ -40,6 +45,10 @@ type UploadHandlers = {
   folderId?: string;
   // Used when the owning Studio session ends, not on page navigation.
   signal?: AbortSignal;
+  shouldPause?: () => boolean;
+  pauseSignal?: AbortSignal;
+  isCancelled?: () => boolean;
+  unconfirmedFiles?: readonly File[];
 };
 
 type ImageSize = { width: number; height: number };
@@ -55,17 +64,26 @@ function errText(err: unknown): string {
 // the image header (naturalWidth/Height are set on load) and the browser's image pipeline can handle
 // large or unusually-encoded files that the bitmap decoder rejects. Resolves null on a zero-size
 // decode, rejects (with a reason) if the element errors.
-function readSizeViaImage(file: File): Promise<ImageSize | null> {
+function readSizeViaImage(file: File, signal?: AbortSignal): Promise<ImageSize | null> {
   return new Promise((resolve, reject) => {
+    signal?.throwIfAborted();
     const url = URL.createObjectURL(file);
     const img = new Image();
+    const cleanup = () => {
+      signal?.removeEventListener("abort", abort);
+      img.onload = null;
+      img.onerror = null;
+      URL.revokeObjectURL(url);
+    };
+    const abort = () => { cleanup(); img.src = ""; reject(signal?.reason); };
+    signal?.addEventListener("abort", abort, { once: true });
     img.onload = () => {
       const size = { width: img.naturalWidth, height: img.naturalHeight };
-      URL.revokeObjectURL(url);
+      cleanup();
       resolve(size.width > 0 && size.height > 0 ? size : null);
     };
     img.onerror = () => {
-      URL.revokeObjectURL(url);
+      cleanup();
       reject(new Error("img decode failed"));
     };
     img.src = url;
@@ -124,28 +142,31 @@ async function readJpegSize(file: File): Promise<ImageSize | null> {
 // (memory pressure, huge dimensions, CMYK/12-bit encodings) even though the file is perfectly valid.
 // So we fall back to an <img> element, then to parsing the JPEG header directly. Returns the size, or
 // an { error } describing why every method failed (also logged to the console for support triage).
-async function readImageSize(file: File): Promise<ImageSize | { error: string }> {
+async function readImageSize(file: File, signal?: AbortSignal): Promise<ImageSize | { error: string }> {
   const attempts: string[] = [];
 
   try {
     const bitmap = await createImageBitmap(file);
     const size = { width: bitmap.width, height: bitmap.height };
     bitmap.close();
+    signal?.throwIfAborted();
     if (size.width > 0 && size.height > 0) {
       return size;
     }
     attempts.push("createImageBitmap: zero dimensions");
   } catch (err) {
+    signal?.throwIfAborted();
     attempts.push(`createImageBitmap: ${errText(err)}`);
   }
 
   try {
-    const size = await readSizeViaImage(file);
+    const size = await readSizeViaImage(file, signal);
     if (size) {
       return size;
     }
     attempts.push("img: zero dimensions");
   } catch (err) {
+    signal?.throwIfAborted();
     attempts.push(`img: ${errText(err)}`);
   }
 
@@ -196,9 +217,11 @@ async function withRetry<T>(
   fn: () => Promise<T>,
   attempts = 4,
   waitReady?: () => Promise<void>,
+  shouldStop?: () => boolean,
 ): Promise<T> {
   let lastError: unknown;
   for (let i = 0; i < attempts; i += 1) {
+    if (i > 0 && shouldStop?.()) throw new UploadPaused();
     if (waitReady) {
       await waitReady();
     }
@@ -206,6 +229,7 @@ async function withRetry<T>(
       return await fn();
     } catch (err) {
       lastError = err;
+      if (err instanceof UploadPaused || shouldStop?.()) throw new UploadPaused();
       if (isTerminalError(err) || i === attempts - 1) {
         throw err;
       }
@@ -216,20 +240,34 @@ async function withRetry<T>(
   throw lastError;
 }
 
-// Run tasks with a bounded number in flight at once.
-async function pool<T>(items: T[], size: number, worker: (item: T) => Promise<void>): Promise<void> {
-  let cursor = 0;
-  const runners = Array.from({ length: Math.min(size, items.length) }, async () => {
-    while (cursor < items.length) {
-      const item = items[cursor];
-      cursor += 1;
-      await worker(item);
-    }
+class UploadPaused extends Error {}
+
+// A hung fetch/decode must eventually settle. Abort the underlying request and also race the
+// promise: token refresh and browser image decoding may not react to abort immediately.
+export function uploadDeadline<T>(operation: (signal: AbortSignal) => Promise<T>, parent?: AbortSignal, ms = 120_000): Promise<T> {
+  const controller = new AbortController();
+  const abort = () => controller.abort(parent?.reason);
+  parent?.addEventListener("abort", abort, { once: true });
+  if (parent?.aborted) abort();
+  const timer = setTimeout(() => controller.abort(new Error("Upload request timed out. Please retry.")), ms);
+  let onAbort: () => void;
+  const interrupted = new Promise<never>((_, reject) => {
+    onAbort = () => reject(controller.signal.reason);
+    if (controller.signal.aborted) onAbort();
+    else controller.signal.addEventListener("abort", onAbort, { once: true });
   });
-  await Promise.all(runners);
+  const work = Promise.resolve().then(() => {
+    controller.signal.throwIfAborted();
+    return operation(controller.signal);
+  });
+  return Promise.race([work, interrupted]).finally(() => {
+    clearTimeout(timer);
+    parent?.removeEventListener("abort", abort);
+    controller.signal.removeEventListener("abort", onAbort);
+  });
 }
 
-type Classified = { file: File; contentType: string };
+type Classified = { file: File; contentType: string; committing?: boolean; failed?: boolean };
 
 /**
  * Uploads original photos to a group: classifies files, chunks into batches of <=100, then runs each
@@ -247,7 +285,7 @@ type Classified = { file: File; contentType: string };
 export async function runUpload(
   tripId: string,
   files: File[],
-  { onProgress, concurrency = 5, folderId, signal }: UploadHandlers,
+  { onProgress, concurrency = 5, folderId, signal, shouldPause, pauseSignal, isCancelled, unconfirmedFiles = [] }: UploadHandlers,
 ): Promise<UploadResult> {
   const accepted: Classified[] = [];
   const progress: UploadProgress = {
@@ -257,16 +295,19 @@ export async function runUpload(
     retryableFailed: 0,
     terminalFailed: 0,
     skipped: 0,
+    cancelled: 0,
+    unconfirmed: 0,
     inFlight: 0,
     retrying: false,
     paused: false,
     errors: [],
   };
 
+  const uncertain = new Set(unconfirmedFiles);
   for (const file of files) {
     const contentType = contentTypeFor(file);
     if (contentType) {
-      accepted.push({ file, contentType });
+      accepted.push({ file, contentType, committing: uncertain.has(file) });
     } else {
       progress.skipped += 1;
       if (progress.errors.length < 20) {
@@ -294,12 +335,14 @@ export async function runUpload(
     if (typeof navigator === "undefined" || navigator.onLine) {
       return Promise.resolve();
     }
+    if (shouldPause?.()) return Promise.reject(new UploadPaused());
     progress.paused = true;
     emit(true);
     return new Promise((resolve, reject) => {
       const cleanup = () => {
         window.removeEventListener("online", handler);
         signal?.removeEventListener("abort", onAbort);
+        pauseSignal?.removeEventListener("abort", onPause);
       };
       const handler = () => {
         cleanup();
@@ -308,10 +351,18 @@ export async function runUpload(
         resolve();
       };
       const onAbort = () => { cleanup(); reject(signal?.reason); };
+      const onPause = () => { cleanup(); reject(new UploadPaused()); };
       window.addEventListener("online", handler);
       signal?.addEventListener("abort", onAbort, { once: true });
+      pauseSignal?.addEventListener("abort", onPause, { once: true });
     });
   };
+
+  const operationGate = async () => {
+    if (shouldPause?.()) throw new UploadPaused();
+    await onlineGate();
+  };
+  const unsettled = new Set(accepted);
 
   // Files that failed this pass but a retry could fix. Reassigned each pass; closed over by the
   // failure recorder below.
@@ -323,11 +374,16 @@ export async function runUpload(
     if (progress.errors.length < 20) {
       progress.errors.push({ name: item.file.name, reason });
     }
-    if (isTerminal) {
+    if (isTerminal && !item.committing) {
+      unsettled.delete(item);
       terminal.push(item);
       progress.terminalFailed = terminal.length;
     } else {
-      retryBucket.push(item);
+      item.failed = true;
+      // Once a save was sent, a missing response is not proof it failed. In particular, large
+      // originals skip hashing, so starting another upload automatically could create a duplicate.
+      // Keep uncertain saves for explicit recovery after the customer checks the gallery.
+      if (!item.committing) retryBucket.push(item);
       progress.retryableFailed = retryBucket.length;
     }
   }
@@ -338,7 +394,7 @@ export async function runUpload(
     progress.inFlight += 1;
     emit();
     try {
-      const sizeResult = await readImageSize(file);
+      const sizeResult = await uploadDeadline((requestSignal) => readImageSize(file, requestSignal), signal);
       if ("error" in sizeResult) {
         // Every dimension-reading method failed — treated as terminal (unsupported/damaged); a retry
         // won't help. The real cause is logged to the console (see readImageSize) for triage.
@@ -346,39 +402,50 @@ export async function runUpload(
         return;
       }
       const size = sizeResult;
-      const contentHash = await sha256Hex(file);
+      const contentHash = await uploadDeadline(() => sha256Hex(file), signal);
       const init = await withRetry(
         () =>
-          studioApi.initPhotoUpload(tripId, batchId, {
+          uploadDeadline((requestSignal) => studioApi.initPhotoUpload(tripId, batchId, {
             fileName: file.name,
             contentType,
             contentHash,
             contentSize: file.size,
-          }, signal),
+          }, requestSignal), signal),
         4,
         onlineGate,
+        shouldPause,
       );
       if ("duplicate" in init) {
+        unsettled.delete(item);
         progress.duplicate += 1;
         return;
       }
-      await withRetry(() => putToS3(init.uploadUrl, file, contentType, signal), 4, onlineGate);
+      // Allow large originals time to transfer on slower connections (64 KiB/s budget). The
+      // watchdog still warns after a minute and cancel aborts immediately, independent of size.
+      const transferTimeout = Math.max(120_000, Math.ceil(file.size / (64 * 1024)) * 1000);
+      await withRetry(() => uploadDeadline((requestSignal) => putToS3(init.uploadUrl, file, contentType, requestSignal), signal, transferTimeout), 4, onlineGate, shouldPause);
       await withRetry(
         () =>
-          studioApi.completePhotoUpload(tripId, batchId, {
-            objectKey: init.objectKey,
-            contentType,
-            sizeBytes: file.size,
-            width: size.width,
-            height: size.height,
-            contentHash,
-            contentSize: file.size,
+          uploadDeadline((requestSignal) => {
+            item.committing = true;
+            return studioApi.completePhotoUpload(tripId, batchId, {
+              objectKey: init.objectKey,
+              contentType,
+              sizeBytes: file.size,
+              width: size.width,
+              height: size.height,
+              contentHash,
+              contentSize: file.size,
+            }, requestSignal);
           }, signal),
         4,
         onlineGate,
+        shouldPause,
       );
+      unsettled.delete(item);
       progress.done += 1;
     } catch (err) {
+      if (isCancelled?.() || err instanceof UploadPaused) return;
       signal?.throwIfAborted();
       recordFailure(item, err instanceof Error ? err.message : "Upload failed", isTerminalError(err));
     } finally {
@@ -392,16 +459,18 @@ export async function runUpload(
   async function runPass(pending: Classified[]): Promise<void> {
     for (let i = 0; i < pending.length; i += BATCH_MAX) {
       signal?.throwIfAborted();
+      if (shouldPause?.()) return;
       const chunk = pending.slice(i, i + BATCH_MAX);
       let batchId: string;
       try {
         const res = await withRetry(
-          () => studioApi.createUploadBatch(tripId, chunk.length, folderId, signal),
+          () => uploadDeadline((requestSignal) => studioApi.createUploadBatch(tripId, chunk.length, folderId, requestSignal), signal, 30_000),
           4,
-          onlineGate,
+          operationGate,
         );
         batchId = res.batch.id;
       } catch (err) {
+        if (isCancelled?.() || err instanceof UploadPaused) return;
         signal?.throwIfAborted();
         // Group-wide terminal conditions: trying the remaining batches is pointless. Stop, explain,
         // and keep the not-yet-attempted files as retryable so a tap can resume once it's fixed.
@@ -434,25 +503,38 @@ export async function runUpload(
         emit(true);
         continue;
       }
-      await pool(chunk, concurrency, (c) => uploadOne(c, batchId));
+      let cursor = 0;
+      await Promise.all(Array.from({ length: Math.min(concurrency, chunk.length) }, async () => {
+        while (cursor < chunk.length && !shouldPause?.() && !isCancelled?.()) {
+          const item = chunk[cursor++];
+          await uploadOne(item, batchId);
+        }
+      }));
+      if (shouldPause?.() || isCancelled?.()) return;
     }
   }
 
   // Main pass, then at most one automatic retry sweep for the transient stragglers.
   let pending = accepted;
   for (let pass = 0; ; pass += 1) {
+    for (const item of pending) item.failed = false;
     retryBucket = [];
     progress.retryableFailed = 0;
     progress.retrying = pass > 0;
     emit(true);
 
-    await runPass(pending);
+    try {
+      await runPass(pending);
+    } catch (error) {
+      if (!isCancelled?.()) throw error;
+    }
 
     progress.retrying = false;
     pending = retryBucket;
     // Stop if nothing left, if a group-wide condition halted us, after the single auto-sweep, or if
     // we're offline (let the manual Retry handle it once the connection is back).
     if (
+      shouldPause?.() || isCancelled?.() ||
       pending.length === 0 ||
       progress.halted ||
       pass >= 1 ||
@@ -463,7 +545,20 @@ export async function runUpload(
     await new Promise((r) => setTimeout(r, AUTO_SWEEP_DELAY_MS));
   }
 
-  progress.retryableFailed = pending.length;
+  const remaining = [...unsettled];
+  const cancelled = isCancelled?.() === true;
+  const paused = !cancelled && shouldPause?.() === true && remaining.length > 0;
+  progress.paused = false;
+  progress.retrying = false;
+  progress.inFlight = 0;
+  const unconfirmed = remaining.filter((item) => item.committing);
+  progress.unconfirmed = unconfirmed.length;
+  if (cancelled || paused) {
+    progress.retryableFailed = remaining.filter((item) => !item.committing && item.failed).length;
+    if (cancelled) progress.cancelled = remaining.length - progress.unconfirmed - progress.retryableFailed;
+  } else {
+    progress.retryableFailed = remaining.length - progress.unconfirmed;
+  }
   emit(true);
-  return { progress, retry: pending.map((p) => p.file) };
+  return { progress, retry: cancelled ? [] : remaining.map((p) => p.file), paused, cancelled, unconfirmedFiles: unconfirmed.map((item) => item.file) };
 }
