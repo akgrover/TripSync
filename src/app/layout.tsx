@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Instrument_Serif, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { GoogleAnalytics } from "@/components/google-analytics";
 import { FAQS } from "@/lib/faq";
@@ -19,7 +19,7 @@ const STRUCTURED_DATA = {
       url: SITE_URL,
       logo: `${SITE_URL}/favicon.ico`,
       description:
-        "Private group photo sharing with AI face recognition for weddings, events, and trips.",
+        "AI face-recognition photo delivery for photographers and event organisers - weddings, sports events, and large functions.",
       sameAs: [APP_STORE_URL, PLAY_STORE_URL],
       contactPoint: {
         "@type": "ContactPoint",
@@ -35,7 +35,7 @@ const STRUCTURED_DATA = {
       operatingSystem: "iOS, Android, Web",
       url: SITE_URL,
       description:
-        "TripSync is a private group photo-sharing app that uses AI face recognition to deliver event and group photos. Photographers and event hosts upload a whole shoot from the web and share one link; guests add a selfie and instantly get the full-resolution photos they appear in. Great for weddings, parties, corporate events, and trips with friends.",
+        "TripSync uses AI face recognition to deliver event photos for photographers and organisers. Upload a whole shoot from the web and share one link; guests add a selfie and instantly get the full-resolution photos they appear in. Built for weddings, sports events, marathons, and corporate events.",
       offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
       publisher: { "@id": `${SITE_URL}/#organization` },
       downloadUrl: [APP_STORE_URL, PLAY_STORE_URL],
@@ -58,10 +58,17 @@ const jakarta = Plus_Jakarta_Sans({
   display: "swap",
 });
 
+const instrumentSerif = Instrument_Serif({
+  variable: "--font-instrument-serif",
+  subsets: ["latin"],
+  weight: "400",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "TripSync — Group photos, sorted by AI face recognition",
   description:
-    "Create a private group, add your photos, and TripSync's AI face recognition sorts the album so each person sees the shots they're in — full resolution. Photographers can upload a whole event from the web and share one link.",
+    "Photographers and event organisers upload a whole shoot and share one link; TripSync's AI face recognition gets every guest the full-resolution photos they're in. Built for weddings, sports events, and large functions.",
   metadataBase: new URL("https://thetripsync.in"),
   openGraph: {
     title: "TripSync — Group photos, sorted by AI face recognition",
@@ -98,7 +105,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${jakarta.variable} h-full antialiased`}>
+    <html lang="en" className={`${jakarta.variable} ${instrumentSerif.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-white text-slate-900 font-sans">
         <script
           type="application/ld+json"

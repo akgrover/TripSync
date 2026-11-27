@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Search } from "lucide-react";
+import { Crown, Loader2, Search } from "lucide-react";
 
 import { ApiError, studioApi } from "@/lib/studio/api";
-import type { StudioTrip } from "@/lib/studio/types";
+import type { StudioMember, StudioTrip } from "@/lib/studio/types";
+import { Dialog } from "./dialog";
 import { SlideOver } from "./slide-over";
 
 function Avatar({ name, url }: { name: string; url: string }) {
@@ -19,11 +20,15 @@ function Avatar({ name, url }: { name: string; url: string }) {
   );
 }
 
+type OwnerAction = { member: StudioMember; mode: "promote" | "demote" };
+
 // Owner-only guests panel, shown as a right slide-over (opened from the group header). It ALWAYS lists
-// everyone who's joined, so an owner can see their guests regardless of plan or watermark state. The
-// per-guest "full access" toggle only appears when `showAccessControls` is true (the event is
-// watermarked and the owner is entitled) — otherwise it's a read-only roster. Scales to large events
-// via search.
+// everyone who's joined. Two capabilities layer on top of the roster:
+//  - the watermark clean-access toggle, when `showAccessControls` is true (watermarked event + owner
+//    entitled);
+//  - "Make owner" / remove, when the viewer can manage the group (`trip.canManage`) — this promotes a
+//    guest to a co-owner (internally a 'manager') so a client can run the event. Only the real owner
+//    (`trip.isOwner`) can remove someone's owner access.
 export function MemberAccess({
   trip,
   onChange,
@@ -35,14 +40,19 @@ export function MemberAccess({
   onChange: (trip: StudioTrip) => void;
   open: boolean;
   onClose: () => void;
-  // When true, show the watermark clean-access toggle per guest. When false, a plain roster.
   showAccessControls: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
-  // Which member's toggle failed, + the message, so a switch that stays put has a visible reason.
+  // Which member's clean-access toggle failed, + the message, so a switch that stays put has a reason.
   const [error, setError] = useState<{ memberId: string; message: string } | null>(null);
+  // Owner promote/demote confirmation + its in-flight / error state.
+  const [ownerAction, setOwnerAction] = useState<OwnerAction | null>(null);
+  const [acting, setActing] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
+  const canManage = trip.canManage === true;
+  const isOwner = trip.isOwner === true;
   const guests = trip.members.filter((member) => member.role !== "owner");
   const withAccess = guests.filter((member) => member.cleanAccess).length;
 
@@ -53,7 +63,6 @@ export function MemberAccess({
       const res = await studioApi.setMemberAccess(trip.id, memberId, next);
       onChange(res.trip);
     } catch (err) {
-      // The switch reflects the server value, so it stays put — surface why it didn't move.
       setError({
         memberId,
         message: err instanceof ApiError ? err.message : "Couldn't update access. Please try again.",
@@ -63,10 +72,34 @@ export function MemberAccess({
     }
   }
 
+  async function confirmOwnerAction() {
+    if (!ownerAction || acting) {
+      return;
+    }
+    setActing(true);
+    setActionError(null);
+    try {
+      const res =
+        ownerAction.mode === "promote"
+          ? await studioApi.promoteManager(trip.id, ownerAction.member.id)
+          : await studioApi.demoteManager(trip.id, ownerAction.member.id);
+      onChange(res.trip);
+      setOwnerAction(null);
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError ? err.message : "Couldn't update. Please try again.",
+      );
+    } finally {
+      setActing(false);
+    }
+  }
+
   const q = query.trim().toLowerCase();
   const filtered = q ? guests.filter((member) => member.name.toLowerCase().includes(q)) : guests;
+  const actionName = ownerAction?.member.name || "This guest";
 
   return (
+    <>
     <SlideOver
       open={open}
       onClose={onClose}
@@ -110,6 +143,7 @@ export function MemberAccess({
             <ul className="divide-y divide-slate-100 px-5">
               {filtered.map((member) => {
                 const clean = member.cleanAccess ?? false;
+                const isManager = member.role === "manager";
                 const busy = busyId === member.id;
                 return (
                   <li key={member.id} className="py-3">
@@ -117,31 +151,70 @@ export function MemberAccess({
                       <div className="flex min-w-0 items-center gap-3">
                         <Avatar name={member.name} url={member.avatar} />
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-slate-900">{member.name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="truncate text-sm font-medium text-slate-900">{member.name}</p>
+                            {isManager ? (
+                              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-semibold text-teal-700">
+                                <Crown className="h-2.5 w-2.5" />
+                                Owner
+                              </span>
+                            ) : null}
+                          </div>
                           {showAccessControls ? (
                             <p className="text-xs text-slate-500">{clean ? "Full access" : "Watermarked"}</p>
                           ) : null}
                         </div>
                       </div>
-                      {showAccessControls ? (
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={clean}
-                          aria-label={`Full access for ${member.name}`}
-                          disabled={busy}
-                          onClick={() => void toggle(member.id, !clean)}
-                          className={`relative h-6 w-11 shrink-0 rounded-full transition disabled:opacity-60 ${
-                            clean ? "bg-teal-600" : "bg-slate-300"
-                          }`}
-                        >
-                          <span
-                            className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${
-                              clean ? "left-[22px]" : "left-0.5"
+
+                      <div className="flex shrink-0 items-center gap-3">
+                        {/* Make owner (promote) — any manager/owner; Remove (demote) — real owner only. */}
+                        {isManager ? (
+                          isOwner ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActionError(null);
+                                setOwnerAction({ member, mode: "demote" });
+                              }}
+                              className="rounded-lg px-2 py-1 text-xs font-medium text-slate-500 transition hover:bg-slate-50 hover:text-red-600"
+                            >
+                              Remove
+                            </button>
+                          ) : null
+                        ) : canManage ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActionError(null);
+                              setOwnerAction({ member, mode: "promote" });
+                            }}
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                          >
+                            <Crown className="h-3 w-3" />
+                            Make owner
+                          </button>
+                        ) : null}
+
+                        {showAccessControls ? (
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={clean}
+                            aria-label={`Full access for ${member.name}`}
+                            disabled={busy}
+                            onClick={() => void toggle(member.id, !clean)}
+                            className={`relative h-6 w-11 shrink-0 rounded-full transition disabled:opacity-60 ${
+                              clean ? "bg-teal-600" : "bg-slate-300"
                             }`}
-                          />
-                        </button>
-                      ) : null}
+                          >
+                            <span
+                              className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${
+                                clean ? "left-[22px]" : "left-0.5"
+                              }`}
+                            />
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
                     {error?.memberId === member.id ? (
                       <p className="mt-1.5 text-xs text-red-600">{error.message}</p>
@@ -154,5 +227,56 @@ export function MemberAccess({
         </>
       )}
     </SlideOver>
+
+      <Dialog
+        open={ownerAction !== null}
+        onClose={() => !acting && setOwnerAction(null)}
+        title={ownerAction?.mode === "promote" ? "Make an owner?" : "Remove owner access?"}
+      >
+        {ownerAction ? (
+          <>
+            <p className="text-sm text-slate-600">
+              {ownerAction.mode === "promote" ? (
+                <>
+                  <span className="font-semibold text-slate-900">{actionName}</span> will be able to
+                  manage this event — add or remove photos, invite people, rename it, and make others
+                  owners. They <span className="font-medium">can&apos;t</span> see earnings or billing,
+                  or delete the event.
+                </>
+              ) : (
+                <>
+                  <span className="font-semibold text-slate-900">{actionName}</span> will go back to a
+                  regular guest and lose the ability to manage this event.
+                </>
+              )}
+            </p>
+            {actionError ? <p className="mt-2 text-sm text-red-600">{actionError}</p> : null}
+            <div className="mt-4 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setOwnerAction(null)}
+                disabled={acting}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmOwnerAction()}
+                disabled={acting}
+                className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white transition disabled:opacity-60 ${
+                  ownerAction.mode === "promote"
+                    ? "bg-teal-600 hover:bg-teal-700"
+                    : "bg-red-600 hover:bg-red-700"
+                }`}
+              >
+                {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {ownerAction.mode === "promote" ? "Make owner" : "Remove"}
+              </button>
+            </div>
+          </>
+        ) : null}
+      </Dialog>
+    </>
   );
 }

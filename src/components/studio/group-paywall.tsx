@@ -1,44 +1,30 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Check, Copy, Loader2, Lock, LockOpen } from "lucide-react";
+import { Check, Copy, CreditCard, Loader2, Lock, LockOpen, TimerOff } from "lucide-react";
 
 import { ApiError, studioApi } from "@/lib/studio/api";
-import { formatBytes } from "@/lib/studio/format";
+import { formatBytes, formatDate } from "@/lib/studio/format";
 import { formatRupees } from "@/lib/studio/money";
-import { getCachedMe } from "@/lib/studio/profile";
 import type { GroupPaymentLink, StudioTrip } from "@/lib/studio/types";
 
-// Owner-facing pay-to-unlock panel for a rev_share event group. Shows the lock state, the current
-// unlock price, and the shareable payment link the photographer copies to their client. The client
-// pays on /pay?token=… (no login); the group unlocks automatically via the payment webhook.
+// Owner-facing panel for a pay-to-unlock event group. The per-event charge is TripSync's PLATFORM FEE
+// (AI face matching + hosting), paid by the photographer — not a client purchase, and TripSync no
+// longer shares revenue or pays photographers out. Shows the lock/expiry state, the fee, and a link
+// to TripSync's secure payment page (/pay?token=…, no login); the group unlocks via the webhook.
 export function GroupPaywall({ trip }: { trip: StudioTrip }) {
-  const unlocked = trip.revShare?.locked === false;
+  // `expired` = paid once, term since lapsed (re-locked by the clock). `unlocked` = paid and still
+  // live. The stored lock flag alone can't tell these apart, so check `expired` first.
+  const expired = trip.revShare?.expired === true;
+  const unlocked = trip.revShare?.locked === false && !expired;
   const [link, setLink] = useState<GroupPaymentLink | null>(null);
   const [loading, setLoading] = useState(!unlocked);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  // Clients see the studio name on the pay page; nudge the photographer to set one if it's blank.
-  const [missingStudioName, setMissingStudioName] = useState(false);
 
   useEffect(() => {
-    if (unlocked) {
-      return;
-    }
-    let active = true;
-    void getCachedMe()
-      .then((me) => {
-        if (active) setMissingStudioName(!(me.companyName && me.companyName.trim()));
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, [unlocked]);
-
-  useEffect(() => {
-    // Nothing to price once it's unlocked — render handles that case first, so no state change here.
+    // Fetch the pay link + price for both the locked (unlock) and expired (renew) cases; only a live
+    // event needs nothing.
     if (unlocked) {
       return;
     }
@@ -90,70 +76,78 @@ export function GroupPaywall({ trip }: { trip: StudioTrip }) {
   }
 
   return (
-    // Neutral card: a group awaiting payment isn't an error, so the surface stays white. Amber is used
-    // only as the status accent (the chip + a thin left border); the primary action is teal like the
-    // rest of the app.
+    // Neutral card: an event awaiting its fee isn't an error, so the surface stays white. Amber is the
+    // status accent (chip + thin left border); the primary action is teal like the rest of the app.
     <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 border-l-4 border-l-amber-400 bg-white p-4">
       <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-        <Lock className="h-3 w-3" />
-        Locked until paid
+        {expired ? <TimerOff className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
+        {expired ? "Access expired" : "Fee due to unlock"}
       </span>
       <p className="mt-2 text-sm text-slate-600">
-        Guests see watermarked previews. Share the payment link — the photos unlock automatically for
-        everyone once payment is received.
+        {expired ? (
+          <>
+            Access ended
+            {trip.revShare?.expiresAt ? ` on ${formatDate(trip.revShare.expiresAt)}` : ""}, so guests
+            see watermarked previews again. Pay the renewal fee to restore full-resolution access for
+            everyone.
+          </>
+        ) : (
+          <>
+            This is TripSync&apos;s one-time fee for this event — it covers the AI face matching and
+            hosting. Pay it to unlock full-resolution photos for everyone. Bill your client whatever
+            you like; this fee is just your cost.
+          </>
+        )}
       </p>
 
       {loading ? (
         <p className="mt-3 inline-flex items-center gap-1.5 text-sm text-slate-500">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Preparing the link…
+          Preparing…
         </p>
       ) : error ? (
         <p className="mt-3 text-sm text-red-600">{error}</p>
-      ) : link?.needsAdminPrice ? (
+      ) : !expired && link?.needsAdminPrice ? (
         <p className="mt-3 text-sm text-slate-600">
-          This event is larger than our standard tiers. Contact TripSync to set the unlock price.
+          This event is larger than our standard tiers. Contact TripSync to set the fee.
         </p>
       ) : link ? (
         <>
           <p className="mt-3 text-sm text-slate-700">
-            Unlock price:{" "}
+            {expired ? "Renewal fee: " : "Platform fee: "}
             <span className="font-semibold text-slate-900">
-              {link.price ? formatRupees(link.price.amountPaise) : "—"}
+              {(() => {
+                const amt = expired ? link.renewalPrice : link.price;
+                return amt ? formatRupees(amt.amountPaise) : "—";
+              })()}
             </span>
-            {link.price ? (
-              <span className="text-slate-400"> · based on {formatBytes(link.storageUsedBytes)} uploaded</span>
+            {!expired && link.price ? (
+              <span className="text-slate-400"> · based on {formatBytes(link.storageUsedBytes)} stored</span>
             ) : null}
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <input
-              readOnly
-              value={payUrl}
-              onFocus={(e) => e.currentTarget.select()}
-              className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
-            />
+            <a
+              href={payUrl || "#"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700"
+            >
+              <CreditCard className="h-4 w-4" />
+              {expired ? "Pay renewal fee" : "Pay fee & unlock"}
+            </a>
             <button
               type="button"
               onClick={() => void copyLink()}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
               {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              {copied ? "Copied" : "Copy link"}
+              {copied ? "Copied" : "Copy pay link"}
             </button>
           </div>
           <p className="mt-2 text-xs text-slate-500">
-            This is the <span className="font-medium text-slate-600">payment</span> link — different
-            from the invite code / QR guests use to view the album.
+            Opens TripSync&apos;s secure payment page. This is separate from the invite code / QR your
+            guests use to view the album.
           </p>
-          {missingStudioName ? (
-            <p className="mt-2 text-xs text-slate-500">
-              Tip: set your{" "}
-              <Link href="/studio/profile" className="font-semibold text-teal-700 underline">
-                studio name
-              </Link>{" "}
-              so clients see who they&apos;re paying.
-            </p>
-          ) : null}
         </>
       ) : null}
     </div>

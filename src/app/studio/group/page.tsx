@@ -160,7 +160,7 @@ function GroupDetail() {
               {/* Any owner can always open this to see who's joined. The panel shows the per-guest
                   watermark access toggles only when the event is watermarked and the plan allows it
                   (see showAccessControls below); otherwise it's a plain roster. */}
-              {trip.isOwner ? (
+              {trip.canManage ? (
                 <button
                   type="button"
                   onClick={() => setGuestOpen(true)}
@@ -170,7 +170,7 @@ function GroupDetail() {
                   Guests
                 </button>
               ) : null}
-              {trip.isOwner ? (
+              {trip.canManage ? (
                 <button
                   type="button"
                   onClick={() => setSettingsOpen(true)}
@@ -207,7 +207,7 @@ function GroupDetail() {
                 {f.name}
               </button>
             ))}
-            {trip.isOwner && canFolders ? (
+            {trip.canManage && canFolders ? (
               <button
                 type="button"
                 onClick={() => {
@@ -252,7 +252,7 @@ function GroupDetail() {
               tripId={trip.id}
               folder={currentFolder?.id}
               reload={reload}
-              canDelete={trip.isOwner ?? false}
+              canDelete={trip.canManage ?? false}
               uploadAvailable={(trip.canUpload ?? false) && !currentFolder}
             />
           </div>
@@ -287,7 +287,7 @@ function GroupDetail() {
             </button>
           </Dialog>
 
-          {trip.isOwner ? (
+          {trip.canManage ? (
             <SlideOver
               open={settingsOpen}
               onClose={() => setSettingsOpen(false)}
@@ -296,6 +296,7 @@ function GroupDetail() {
               <GroupSettings
                 trip={trip}
                 onChange={setTrip}
+                isOwner={trip.isOwner ?? false}
                 canWatermark={canWatermark}
                 onDeleted={() => {
                   setSettingsOpen(false);
@@ -305,16 +306,19 @@ function GroupDetail() {
             </SlideOver>
           ) : null}
 
-          {trip.isOwner ? (
+          {trip.canManage ? (
             <MemberAccess
               trip={trip}
               onChange={setTrip}
               open={guestOpen}
               onClose={() => setGuestOpen(false)}
-              // Pay-to-unlock groups unlock for everyone on payment, so there's no per-guest access to
-              // grant — show a plain roster. Per-member access is only for the proofing model.
+              // Per-guest clean-access is OWNER-ONLY (the photographer decides who's "paid"), and only
+              // in the proofing model. Managers see a plain roster here (+ the Make-owner action).
               showAccessControls={
-                isWatermarkOn(trip) && canWatermark && trip.accessModel !== "rev_share"
+                (trip.isOwner ?? false) &&
+                isWatermarkOn(trip) &&
+                canWatermark &&
+                trip.accessModel !== "rev_share"
               }
             />
           ) : null}

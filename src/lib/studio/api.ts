@@ -9,6 +9,8 @@ import type {
   AdminWithdrawalRow,
   AuthResponse,
   CheckoutInfo,
+  EventPricingConfigView,
+  EventPricingTier,
   GroupPaymentLink,
   PhotosPage,
   PlanOffer,
@@ -32,7 +34,7 @@ export class ApiError extends Error {
 }
 
 type RequestOptions = {
-  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   // Set false for unauthenticated endpoints (OTP start/verify). Defaults to attaching the token.
   auth?: boolean;
@@ -275,6 +277,12 @@ export const studioApi = {
       method: "POST",
       body: { cleanAccess },
     }),
+  // Promote a member to co-owner (internally 'manager'): owner or an existing manager may do this.
+  promoteManager: (tripId: string, memberId: string) =>
+    request<{ trip: StudioTrip }>(`/trips/${tripId}/members/${memberId}/manager`, { method: "POST" }),
+  // Remove co-owner status (demote to member). Owner-only.
+  demoteManager: (tripId: string, memberId: string) =>
+    request<{ trip: StudioTrip }>(`/trips/${tripId}/members/${memberId}/manager`, { method: "DELETE" }),
   // Owner-only: re-generate every photo's watermark with the current style (after changing it).
   regenerateWatermark: (tripId: string) =>
     request<{ ok: boolean }>(`/trips/${tripId}/watermark/regenerate`, { method: "POST" }),
@@ -396,6 +404,14 @@ export const studioApi = {
       `/admin/trips/${tripId}/price`,
       { method: "POST", body: { priceOverridePaise } },
     ),
+  // Rev-share event pricing + term table (admin-editable; docs §12.4). GET the live config, PUT to
+  // replace the whole tier set. A non-INR currency is optional (pilot is INR).
+  getAdminPricing: () => request<EventPricingConfigView>("/admin/pricing"),
+  replaceAdminPricing: (tiers: EventPricingTier[], currency?: string) =>
+    request<EventPricingConfigView>("/admin/pricing", {
+      method: "PUT",
+      body: currency ? { tiers, currency } : { tiers },
+    }),
   // Rev-share withdrawals (admin settlement). List (optionally by status), then settle (mark paid) or
   // reject. See docs/PILOT_REVENUE_MODEL.md §11b.
   adminListWithdrawals: (status?: "requested" | "paid" | "rejected") =>

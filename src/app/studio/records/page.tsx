@@ -15,6 +15,7 @@ import {
   LockOpen,
   RefreshCw,
   ShieldCheck,
+  TimerOff,
   Trash2,
   Users,
 } from "lucide-react";
@@ -29,8 +30,8 @@ import type {
   AdminWindow,
 } from "@/lib/studio/types";
 import { Dialog } from "@/components/studio/dialog";
+import { EventPricingPanel } from "@/components/studio/event-pricing-panel";
 import { FeatureFlagsPanel } from "@/components/studio/feature-flags-panel";
-import { WithdrawalsPanel } from "@/components/studio/withdrawals-panel";
 
 type SortKey =
   | "name"
@@ -216,7 +217,8 @@ export default function RecordsPage() {
     }
   }
 
-  // Force-unlock a rev-share group with no payment (first-event-free / comp). Flips `locked` in the
+  // Force-unlock a rev-share group with no payment (first-event-free / comp / extend an expired one).
+  // Re-unlocking an expired group re-stamps its term, so clear `expired` too. Flips state in the
   // cached list so the popup reflects it immediately.
   async function forceUnlockGroup(ownerId: string, group: AdminOwnerGroup) {
     if (unlockingGroupId) {
@@ -229,7 +231,7 @@ export default function RecordsPage() {
       setGroupsCache((prev) => ({
         ...prev,
         [ownerId]: (prev[ownerId] ?? []).map((it) =>
-          it.id === group.id ? { ...it, locked: false } : it,
+          it.id === group.id ? { ...it, locked: false, expired: false } : it,
         ),
       }));
     } catch (err) {
@@ -408,8 +410,7 @@ export default function RecordsPage() {
         quota, groups, guests and lifetime are current totals.
       </p>
 
-      {/* Rev-share withdrawal requests (self-contained; hidden when there are none) */}
-      <WithdrawalsPanel />
+      {/* Withdrawals panel removed: no photographer payouts in the platform-fee model (parked). */}
 
       {/* Owners table */}
       <div className="shadow-card mt-8 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
@@ -721,6 +722,8 @@ export default function RecordsPage() {
         ) : null}
       </Dialog>
 
+      <EventPricingPanel />
+
       <FeatureFlagsPanel />
     </div>
   );
@@ -844,7 +847,7 @@ function GroupsPopupBody({
                   <div className="flex flex-wrap items-center gap-2">
                     <span
                       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                        g.locked
+                        g.locked || g.expired
                           ? "bg-amber-50 text-amber-700"
                           : "bg-emerald-50 text-emerald-700"
                       }`}
@@ -853,19 +856,23 @@ function GroupsPopupBody({
                         <>
                           <Lock className="h-3 w-3" /> Locked
                         </>
+                      ) : g.expired ? (
+                        <>
+                          <TimerOff className="h-3 w-3" /> Expired
+                        </>
                       ) : (
                         <>
                           <LockOpen className="h-3 w-3" /> Unlocked
                         </>
                       )}
                     </span>
-                    {g.locked ? (
+                    {g.locked || g.expired ? (
                       <button
                         type="button"
                         onClick={() => setArmedUnlockId(armedUnlockId === g.id ? null : g.id)}
                         className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
                       >
-                        Mark paid / unlock
+                        {g.expired ? "Extend / re-unlock" : "Waive fee / unlock"}
                       </button>
                     ) : null}
                     <button
@@ -880,12 +887,24 @@ function GroupsPopupBody({
                     </button>
                   </div>
 
-                  {armedUnlockId === g.id && g.locked ? (
+                  {armedUnlockId === g.id && (g.locked || g.expired) ? (
                     <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
                       <p className="text-xs text-amber-800">
-                        Unlock this event for <strong>everyone</strong> without a TripSync payment —
-                        use this when the photographer was <strong>paid offline</strong>, or to comp
-                        the event. Guests can download the full-resolution photos immediately.
+                        {g.expired ? (
+                          <>
+                            Re-unlock this <strong>expired</strong> event for{" "}
+                            <strong>everyone</strong> and restart its term — use this to{" "}
+                            <strong>waive the renewal fee</strong> (e.g. comped, or paid another way).
+                            Guests get full-resolution access again immediately.
+                          </>
+                        ) : (
+                          <>
+                            Unlock this event for <strong>everyone</strong> without charging the
+                            platform fee — use this to <strong>waive/comp the fee</strong> (e.g. the
+                            first free event). Guests can download the full-resolution photos
+                            immediately.
+                          </>
+                        )}
                       </p>
                       <div className="mt-2 flex justify-end gap-2">
                         <button

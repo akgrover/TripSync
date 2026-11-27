@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, ImageIcon, ImageOff, LockKeyhole, Users } from "lucide-react";
+import { CheckCircle2, ImageIcon, ImageOff, LockKeyhole, TimerOff, Users } from "lucide-react";
 
 import { joinLink } from "@/lib/studio/config";
 import type { StudioTrip } from "@/lib/studio/types";
@@ -19,7 +19,7 @@ export function GroupCard({ trip, onOpen }: { trip: StudioTrip; onOpen: () => vo
         className="group block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500"
         aria-label={`Open ${trip.title}`}
       >
-        <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 sm:aspect-[16/10]">
+        <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-100">
           {trip.coverUrl ? (
             // eslint-disable-next-line @next/next/no-img-element -- static export, images unoptimized
             <img
@@ -43,17 +43,27 @@ export function GroupCard({ trip, onOpen }: { trip: StudioTrip; onOpen: () => vo
             </span>
             {trip.accessModel === "rev_share" ? (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-slate-950/55 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-md">
-                {trip.revShare?.locked ? (
-                  <LockKeyhole className="h-3 w-3 text-amber-300" />
+                {trip.revShare?.expired ? (
+                  <>
+                    <TimerOff className="h-3 w-3 text-amber-300" />
+                    Expired
+                  </>
+                ) : trip.revShare?.locked ? (
+                  <>
+                    <LockKeyhole className="h-3 w-3 text-amber-300" />
+                    Locked
+                  </>
                 ) : (
-                  <CheckCircle2 className="h-3 w-3 text-emerald-300" />
+                  <>
+                    <CheckCircle2 className="h-3 w-3 text-emerald-300" />
+                    Unlocked
+                  </>
                 )}
-                {trip.revShare?.locked ? "Locked" : "Unlocked"}
               </span>
             ) : null}
           </div>
           <div className="absolute inset-x-4 bottom-3 flex items-end justify-between gap-3 text-white">
-            <h3 className="line-clamp-2 text-lg font-bold leading-tight tracking-tight drop-shadow-sm">
+            <h3 className="line-clamp-2 text-base font-bold leading-tight tracking-tight drop-shadow-sm sm:text-lg">
               {trip.title}
             </h3>
           </div>

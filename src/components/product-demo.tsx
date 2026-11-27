@@ -15,39 +15,42 @@ export function ProductDemo() {
     tab === "all" ? demoPhotos : demoPhotos.filter((p) => p.ofYou);
 
   return (
-    <section id="demo" className="mx-auto max-w-6xl px-6 py-12 md:py-16">
-      <div className="mx-auto mb-8 max-w-2xl text-center">
-        <span className="text-sm font-semibold uppercase tracking-wide text-teal-600">
-          See it in action
-        </span>
-        <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
-          Your camera roll, automatically sorted by who&apos;s in the shot
-        </h2>
-        <p className="mt-4 text-lg text-slate-600">
-          Every upload runs through TripSync&apos;s AI face matching. One tap and you&apos;re only
-          looking at the photos you&apos;re actually in.
-        </p>
-      </div>
+    <section id="demo" className="border-y border-slate-200/70 bg-[#f5f8f7] py-16 md:py-20">
+      <div className="mx-auto max-w-6xl px-6">
+        <div className="mb-10 grid items-end gap-5 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
+          <div>
+            <span className="text-sm font-semibold uppercase tracking-[0.14em] text-teal-700">
+              See it in action
+            </span>
+            <h2 className="font-editorial mt-4 text-4xl font-normal leading-[0.95] tracking-[-0.025em] text-slate-950 sm:text-6xl">
+              The whole event, automatically sorted by who&apos;s in each shot
+            </h2>
+          </div>
+          <p className="text-lg leading-8 text-slate-600 lg:pb-1">
+            Every upload runs through TripSync&apos;s AI face matching. One tap and each guest sees only
+            the photos they&apos;re actually in.
+          </p>
+        </div>
 
       {/* Browser / app chrome */}
-      <div className="mx-auto overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/10">
+      <div className="mx-auto overflow-hidden rounded-3xl border border-white bg-white shadow-[0_22px_55px_-42px_rgba(15,23,42,0.34)] ring-1 ring-slate-200/70">
         {/* Window bar */}
-        <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-4 py-3">
+        <div className="flex items-center gap-2 border-b border-slate-200/70 bg-slate-50/80 px-4 py-3.5">
           <span className="h-2.5 w-2.5 rounded-full bg-red-300" />
           <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
           <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
-          <div className="ml-3 flex-1 truncate rounded-md bg-white px-3 py-1 text-center text-xs text-slate-400 ring-1 ring-slate-200 sm:text-left">
+          <div className="ml-3 flex-1 truncate rounded-lg bg-white px-3 py-1.5 text-center text-xs text-slate-400 shadow-sm ring-1 ring-slate-200/80 sm:text-left">
             thetripsync.in/studio
           </div>
         </div>
 
         {/* Album top bar */}
-        <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div>
-            <p className="text-lg font-bold text-slate-900">
-              Cabo Trip &apos;26 🇲🇽
+            <p className="text-lg font-bold tracking-tight text-slate-950">
+              Riya &amp; Karan 💍
             </p>
-            <p className="text-xs text-slate-500">Shared album &bull; 5 members</p>
+            <p className="text-xs text-slate-500">Event gallery &bull; 248 photos</p>
           </div>
           <div className="flex -space-x-2.5">
             {groupMembers.map((m) => (
@@ -72,7 +75,7 @@ export function ProductDemo() {
         </div>
 
         {/* Filter tabs */}
-        <div className="flex items-center gap-2 px-4 pt-4 sm:px-6">
+        <div className="flex items-center gap-1 px-4 pt-5 sm:px-6">
           <button
             type="button"
             onClick={() => setTab("all")}
@@ -85,7 +88,7 @@ export function ProductDemo() {
             {tab === "all" && (
               <motion.span
                 layoutId="tab-highlight"
-                className="absolute inset-0 rounded-full bg-teal-600"
+                className="absolute inset-0 rounded-full bg-slate-950"
                 transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
               />
             )}
@@ -104,7 +107,7 @@ export function ProductDemo() {
             {tab === "you" && (
               <motion.span
                 layoutId="tab-highlight"
-                className="absolute inset-0 rounded-full bg-teal-600"
+                className="absolute inset-0 rounded-full bg-slate-950"
                 transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
               />
             )}
@@ -139,7 +142,7 @@ export function ProductDemo() {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.94 }}
                   transition={{ duration: 0.35, delay: i * 0.02 }}
-                  className={`group relative overflow-hidden rounded-xl bg-slate-100 ${
+                  className={`group relative overflow-hidden rounded-2xl bg-slate-100 ${
                     photo.tall ? "aspect-[3/4]" : "aspect-square"
                   }`}
                 >
@@ -148,10 +151,10 @@ export function ProductDemo() {
                     alt="Trip photo"
                     fill
                     sizes="(min-width: 1024px) 22vw, (min-width: 768px) 30vw, 45vw"
-                    className="object-cover transition duration-500 group-hover:scale-105"
+                    className="object-cover transition duration-700 ease-out group-hover:scale-[1.03]"
                   />
                   {photo.ofYou && (
-                    <span className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-semibold text-slate-800 shadow-sm backdrop-blur">
+                    <span className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-full border border-white/60 bg-white/90 px-2.5 py-1 text-[10px] font-semibold text-slate-800 shadow-sm backdrop-blur-md">
                       <span className="relative flex h-2 w-2">
                         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-teal-400 opacity-75" />
                         <span className="relative inline-flex h-2 w-2 rounded-full bg-teal-500" />
@@ -179,6 +182,7 @@ export function ProductDemo() {
       </div>
 
       <Legend />
+      </div>
     </section>
   );
 }

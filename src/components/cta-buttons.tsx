@@ -23,7 +23,7 @@ function StoreButton({ href, glyph, top, bottom }: { href: string; glyph: React.
   return (
     <a
       href={href}
-      className="inline-flex items-center gap-2.5 rounded-xl bg-slate-900 px-4 py-2.5 text-white transition hover:bg-slate-800"
+      className="inline-flex min-h-12 items-center gap-2.5 rounded-xl border border-slate-800 bg-slate-950 px-4 py-2.5 text-white shadow-[0_10px_24px_-16px_rgba(15,23,42,0.7)] ring-1 ring-white/10 transition hover:-translate-y-0.5 hover:bg-teal-900"
     >
       {glyph}
       <span className="flex flex-col text-left leading-none">

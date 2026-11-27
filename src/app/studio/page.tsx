@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { FolderPlus, Loader2, LogIn, RefreshCw, Search, Sparkles } from "lucide-react";
+import { FolderPlus, Loader2, LogIn, RefreshCw, Search, ShieldCheck, Sparkles } from "lucide-react";
 
 import { studioApi, ApiError } from "@/lib/studio/api";
 import { clearTokens } from "@/lib/studio/auth";
@@ -26,6 +26,13 @@ export default function StudioHomePage() {
   const [firstName, setFirstName] = useState("");
   const [query, setQuery] = useState("");
   const [view, setView] = useState<"all" | "owned" | "shared">("all");
+
+  // Events this user co-manages (promoted to "Owner") but doesn't own. Drives the welcome banner so a
+  // co-manager who just signed in understands why these events are here and what they can do.
+  const managedCount = useMemo(
+    () => trips.filter((trip) => trip.canManage && !trip.isOwner).length,
+    [trips],
+  );
 
   const filteredTrips = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -158,6 +165,23 @@ export default function StudioHomePage() {
         </div>
       </header>
 
+      {status === "ready" && managedCount > 0 ? (
+        <div className="mt-6 flex items-start gap-3 rounded-2xl border border-teal-200/70 bg-teal-50/70 p-4 sm:p-5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-teal-700 ring-1 ring-teal-200/60">
+            <ShieldCheck className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-slate-900">
+              You&apos;re an owner of {managedCount} {managedCount === 1 ? "event" : "events"}
+            </p>
+            <p className="mt-0.5 text-sm leading-6 text-slate-600">
+              You can manage photos, members, and renewal for {managedCount === 1 ? "it" : "them"} —
+              open {managedCount === 1 ? "it" : "any event"} below to get started.
+            </p>
+          </div>
+        </div>
+      ) : null}
+
       {status === "ready" ? <StudioStats trips={trips} /> : null}
 
       <section className="mt-10" aria-labelledby="events-heading">
@@ -204,7 +228,7 @@ export default function StudioHomePage() {
           ) : null}
         </div>
         {status === "loading" ? (
-          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,19rem),1fr))] gap-5">
             {Array.from({ length: 3 }).map((_, i) => (
               <div
                 key={i}
@@ -257,7 +281,7 @@ export default function StudioHomePage() {
             <p className="mt-1 text-sm text-slate-500">Try a different search or filter.</p>
           </div>
         ) : (
-          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,19rem),1fr))] gap-5">
             {filteredTrips.map((trip) => (
               <GroupCard key={trip.id} trip={trip} onOpen={() => openGroup(trip.id)} />
             ))}

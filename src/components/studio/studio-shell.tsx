@@ -13,7 +13,8 @@ const NAV_BASE = [
   { href: "/studio/profile", label: "Profile", icon: User },
   { href: "/studio/settings", label: "Settings", icon: Settings },
 ];
-// Earnings is shown only to pay-to-unlock (rev_share) photographers. Inserted before Settings.
+// Earnings tab is PARKED (no revenue share / payouts in the platform-fee model). Kept here but never
+// added to the nav — `showEarnings` is forced false below. Revive by restoring that condition.
 const EARNINGS_ITEM = { href: "/studio/earnings", label: "Earnings", icon: Wallet };
 
 // Client-side auth gate + chrome for the Studio portal. The login route renders bare (no gate, no
@@ -36,7 +37,7 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   // Plan label for the badge by the logo (shown only for paid plans).
   const [planLabel, setPlanLabel] = useState<string | null>(null);
-  // Pay-to-unlock photographers get the Earnings tab.
+  // Earnings tab is parked (always hidden) — see EARNINGS_ITEM note above.
   const [showEarnings, setShowEarnings] = useState(false);
 
   useEffect(() => {
@@ -61,9 +62,10 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
         setUserAvatar(user.avatarUrl ?? null);
         // Show the plan badge only for a paid plan (free → no badge).
         setPlanLabel(user.plan && user.plan !== "free" ? (user.planLabel ?? user.plan) : null);
-        // Shown to rev_share photographers, and to anyone who has collected earnings (so a balance
-        // stays reachable even if they're later moved off rev_share).
-        setShowEarnings(user.eventBillingMode === "rev_share" || Boolean(user.hasRevShareEarnings));
+        // Earnings/withdrawals are parked: TripSync no longer collects client money or pays
+        // photographers out — the per-event charge is just our platform fee (photographers bill
+        // clients directly). Keep the page/plumbing but hide the tab. (Was: rev_share || hasEarnings.)
+        setShowEarnings(false);
       })
       .catch(() => undefined);
     return () => {
@@ -88,9 +90,7 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
   }
 
   if (isLoginRoute) {
-    return (
-      <main className="bg-studio flex min-h-dvh items-center justify-center px-4">{children}</main>
-    );
+    return <main className="min-h-dvh bg-studio">{children}</main>;
   }
 
   // Still resolving, or unauthenticated (while the redirect above runs) — neutral placeholder.

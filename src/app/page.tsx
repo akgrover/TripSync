@@ -12,7 +12,7 @@ import { Footer } from "@/components/footer";
 
 export default function Home() {
   return (
-    <div id="top" className="bg-dots">
+    <div id="top" className="landing-page overflow-clip">
       <Navbar />
       <main>
         <Hero />

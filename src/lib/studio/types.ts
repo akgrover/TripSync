@@ -40,6 +40,10 @@ export type StudioUser = {
   // True when the web should ask the user to pick a role (undeclared AND not already a host).
   // Only ever acted on at /studio/login — the album flow never asks.
   needsRole?: boolean;
+  // True when the user owns OR co-manages (is a trip 'manager', shown as "Owner") at least one group.
+  // Login uses this to send a guest-role co-manager into Studio instead of the album. NOT a
+  // permission — every group/trip action is still authorized server-side.
+  managesEvents?: boolean;
   // Default watermark text for this photographer's events (falls back to their name when empty).
   watermarkText?: string;
   // Watermark text opacity (0.1–0.6); null when unset (uses the default).
@@ -89,6 +93,25 @@ export type StudioEarnings = {
   withdrawals: StudioWithdrawal[];
 };
 
+// Admin-editable rev-share pricing tier, from GET/PUT /admin/pricing. All money in paise, storage in
+// bytes. See docs/PILOT_REVENUE_MODEL.md §12.4.
+export type EventPricingTier = {
+  maxBytes: number;
+  unlockPricePaise: number;
+  renewalPricePaise: number;
+  termDays: number;
+  quotaBytes: number;
+  label: string;
+};
+
+// The live pricing config. `source` is "default" when no admin config is saved yet (code fallback).
+export type EventPricingConfigView = {
+  source: "db" | "default";
+  currency: string;
+  updatedAt: string | null;
+  tiers: EventPricingTier[];
+};
+
 // Admin view of a withdrawal request, from GET /admin/withdrawals.
 export type AdminWithdrawalRow = {
   id: string;
@@ -132,7 +155,9 @@ export type StudioMember = {
   id: string;
   name: string;
   avatar: string;
-  role?: "owner" | "member";
+  // 'manager' is a co-admin the owner handed control to — shown to users as "Owner". The real
+  // billing/earnings owner is 'owner'. 'member' is a regular guest.
+  role?: "owner" | "manager" | "member";
   // Watermark exemption (owner view only): true when this member has been granted clean access.
   cleanAccess?: boolean;
 };
@@ -146,6 +171,9 @@ export type StudioTrip = {
   photoCount?: number;
   members: StudioMember[];
   isOwner?: boolean;
+  // True when the viewer may manage this group (owner OR a manager). Gates management UI like the
+  // "Make owner" action. Owner-only powers still gate on `isOwner`.
+  canManage?: boolean;
   allowMemberUploads?: boolean;
   canUpload?: boolean;
   photoVisibility?: "everyone" | "matched_only";
@@ -156,7 +184,15 @@ export type StudioTrip = {
   accessModel?: "proofing" | "rev_share";
   // Present only for rev_share groups. `locked` is the flag the UI gates on; `payToken` (the public
   // payment link) is surfaced to the owner only.
-  revShare?: { locked: boolean; unlockedAt: string | null; payToken?: string | null };
+  // `locked` = never paid. `expired` = paid but the term lapsed (re-locked by the clock) — read this,
+  // not `unlockedAt`, to tell a live event from one that needs renewal. `expiresAt` is the deadline.
+  revShare?: {
+    locked: boolean;
+    expired?: boolean;
+    expiresAt?: string | null;
+    unlockedAt: string | null;
+    payToken?: string | null;
+  };
   // Logical folders for organising photos (web). Ordered by creation.
   folders?: StudioFolder[];
 };
@@ -166,9 +202,15 @@ export type StudioTrip = {
 export type GroupPaymentLink = {
   accessModel: "rev_share";
   locked: boolean;
+  // Paid-then-lapsed (re-locked by the clock); distinct from never-paid `locked`. `expiresAt` is the
+  // current term's deadline.
+  expired: boolean;
+  expiresAt: string | null;
   payToken: string;
   storageUsedBytes: number;
   price: { amountPaise: number; currency: string; tierLabel: string } | null;
+  // What it costs to extend the event once expired (shown in the renew UI).
+  renewalPrice: { amountPaise: number; currency: string; tierLabel: string } | null;
   needsAdminPrice: boolean;
 };
 
@@ -177,7 +219,8 @@ export type PublicPayStatus = {
   title: string;
   photographerName: string;
   logoUrl: string | null; // signed studio logo for the pay page; null when the photographer set none
-  state: "locked" | "unlocked";
+  // 'locked' = never paid; 'unlocked' = paid and live; 'expired' = paid but the term lapsed (renew).
+  state: "locked" | "unlocked" | "expired";
   amountPaise: number | null;
   currency: string;
   tierLabel: string | null;
@@ -271,6 +314,9 @@ export type AdminOwnerGroup = {
   // can't crash the popup (treated as proofing / unlocked when absent).
   accessModel?: "proofing" | "rev_share";
   locked?: boolean;
+  // Paid-then-lapsed (re-locked by the clock); distinct from never-paid `locked`. Optional for
+  // forward-compat with an older API response.
+  expired?: boolean;
   createdAt: string;
 };
 

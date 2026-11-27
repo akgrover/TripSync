@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
-import { CheckCircle2, ImageIcon, Loader2, Lock } from "lucide-react";
+import { CheckCircle2, ImageIcon, Loader2, Lock, TimerOff } from "lucide-react";
 
 import { ApiError, studioApi } from "@/lib/studio/api";
 import { startGroupUnlockCheckout } from "@/lib/studio/billing";
@@ -37,6 +37,7 @@ function PayInner() {
         const res = await studioApi.getPublicPayStatus(token);
         if (!active) return;
         setData(res);
+        // Both 'locked' (never paid) and 'expired' (renew) are payable → "ready"; copy varies by state.
         setPhase(res.state === "unlocked" ? "unlocked" : "ready");
       } catch (err) {
         if (!active) return;
@@ -153,16 +154,25 @@ function PayInner() {
               </div>
             ) : data?.needsPrice ? (
               <p className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                This event needs a custom price. Please contact your photographer to complete payment.
+                This event is larger than our standard tiers. Please contact TripSync to set the fee.
               </p>
             ) : (
               <>
-                <p className="mt-5 text-sm text-slate-600">
-                  Pay to unlock the full-resolution, watermark-free photos for this event. Everyone with
-                  access sees the originals once payment is received.
-                </p>
+                {data?.state === "expired" ? (
+                  <div className="mt-5 flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                    <TimerOff className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>This event has expired — pay the renewal fee to restore full-resolution access for everyone.</span>
+                  </div>
+                ) : (
+                  <p className="mt-5 text-sm text-slate-600">
+                    This is TripSync&apos;s one-time fee for this event — it covers the AI face matching
+                    and hosting. Paying it unlocks the full-resolution photos for everyone.
+                  </p>
+                )}
                 <div className="mt-5 flex items-baseline justify-between rounded-2xl bg-slate-50 px-4 py-3">
-                  <span className="text-sm text-slate-500">Unlock price</span>
+                  <span className="text-sm text-slate-500">
+                    {data?.state === "expired" ? "Renewal fee" : "Event fee"}
+                  </span>
                   <span className="text-2xl font-semibold text-slate-900">
                     {data?.amountPaise != null ? formatRupees(data.amountPaise) : "—"}
                   </span>
@@ -192,12 +202,15 @@ function PayInner() {
                     ) : (
                       <Lock className="h-4 w-4" />
                     )}
-                    {phase === "processing" ? "Confirming payment…" : "Pay & unlock"}
+                    {phase === "processing"
+                      ? "Confirming payment…"
+                      : data?.state === "expired"
+                        ? "Pay & renew"
+                        : "Pay & unlock"}
                   </button>
                 )}
                 <p className="mt-3 text-center text-xs text-slate-400">
-                  {data?.photographerName ? `Paying ${data.photographerName} · ` : ""}Secure payment
-                  via Razorpay
+                  TripSync platform fee · Secure payment via Razorpay
                 </p>
               </>
             )}

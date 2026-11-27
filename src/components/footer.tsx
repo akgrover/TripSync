@@ -6,12 +6,12 @@ export function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-slate-100 bg-white">
-      <div className="mx-auto max-w-6xl px-6 py-10">
+    <footer className="border-t border-slate-200/70 bg-white/70">
+      <div className="mx-auto max-w-6xl px-6 py-12">
         <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center sm:justify-between">
           <Logo />
 
-          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-slate-500">
+          <div className="flex flex-wrap items-center justify-center gap-x-7 gap-y-3 text-sm text-slate-500">
             <Link href="/privacy-policy" className="transition hover:text-slate-900">
               Privacy Policy
             </Link>
@@ -26,7 +26,7 @@ export function Footer() {
             </a>
           </div>
 
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-200 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-700">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600">
             <Sparkles className="h-3.5 w-3.5" />
             Group photos, sorted by face
           </span>

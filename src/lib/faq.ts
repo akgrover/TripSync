@@ -6,11 +6,19 @@ export type FaqItem = { q: string; a: string };
 export const FAQS: FaqItem[] = [
   {
     q: "What is TripSync?",
-    a: "TripSync puts everyone's photos from an event in one place and uses face recognition to find the ones each person is in. Everyone gets their own photos in full quality, without scrolling through hundreds of pictures or getting shrunken copies from chat apps.",
+    a: "TripSync is for photographers and event organisers. Upload a whole shoot - a wedding, a marathon, a tournament, any event - and face recognition finds each person's photos for them. Everyone opens one link and gets their own shots in full quality, without scrolling through thousands of images or sending shrunken copies over chat apps.",
   },
   {
     q: "I'm a photographer - why would I use TripSync?",
     a: "You upload the whole shoot once and share a single link. Every guest finds their own photos by face, so you skip the sorting and the download links that expire. And your studio name and logo show up on the link, the QR poster, and each guest's gallery, so everyone at the event sees who shot it.",
+  },
+  {
+    q: "Does TripSync work for sports events and marathons?",
+    a: "Yes - it is built for them. Upload the full set from a race, tournament, or sports day and every athlete, parent, and spectator finds their own photos by face. Big crowds and repeated faces are no problem: guests just add a quick selfie and get their shots, no bib-number searching.",
+  },
+  {
+    q: "How does pricing work for event & sports photographers?",
+    a: "Instead of an annual plan, you can pay a small per-event fee that covers the AI face matching and hosting for that event. You then bill your clients whatever you like, directly - TripSync only takes its fee and never touches what you charge. The fee scales with the event's size. It is set up per event, so contact us to see if it fits the events you shoot.",
   },
   {
     q: "Can I add my own logo and brand?",
@@ -18,7 +26,7 @@ export const FAQS: FaqItem[] = [
   },
   {
     q: "What is the QR code for?",
-    a: "Every event gets a printable QR poster. Put it on a table at the event. Guests scan it with their phone, get the app or open the gallery in their browser, and find the photos they are in.",
+    a: "Every event gets a printable QR poster. Put it on a table at the venue or at the finish line. Guests scan it with their phone, get the app or open the gallery in their browser, and find the photos they are in.",
   },
   {
     q: "How do guests get their photos?",
@@ -34,14 +42,14 @@ export const FAQS: FaqItem[] = [
   },
   {
     q: "Is TripSync private?",
-    a: "Yes. Every group is private and invite-only. People only see photos from groups they have joined, and you can limit guests to just the photos they are in.",
+    a: "Yes. Every event is private and invite-only. People only see photos from events they have joined, and you can limit guests to just the photos they are in.",
   },
   {
     q: "Do I use the app or the website?",
-    a: "Photographers and event hosts use TripSync Studio on the web to upload and manage events - it is best for large uploads. Guests use the free iPhone and Android app, or open the shared link in their browser.",
+    a: "Photographers and organisers use TripSync Studio on the web to upload and manage events - it is best for large uploads. Guests use the free iPhone and Android app, or open the shared link in their browser.",
   },
   {
     q: "What does it cost?",
-    a: "The app is free, and you can start a group at no cost. Paid plans add more storage and photos, plus watermarking and folders, for photographers and hosts running bigger events.",
+    a: "Photographers and organisers start free, then either pick an annual plan by storage and volume, or pay a small per-event fee for one-off events (covers the AI matching and hosting; you set your own client pricing). Guests never pay TripSync to receive photos a photographer has shared with them.",
   },
 ];

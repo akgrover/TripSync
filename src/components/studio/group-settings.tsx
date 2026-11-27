@@ -71,11 +71,15 @@ export function GroupSettings({
   trip,
   onChange,
   onDeleted,
+  isOwner = true,
   canWatermark = true,
 }: {
   trip: StudioTrip;
   onChange: (trip: StudioTrip) => void;
   onDeleted: () => void;
+  // The real owner (photographer). Managers (co-owners) see this panel too but NOT the owner-only
+  // sections: the watermark toggle/re-apply (plan + paywall are the owner's) and deleting the group.
+  isOwner?: boolean;
   // When false (owner's plan doesn't include watermarking), the watermark controls are hidden.
   canWatermark?: boolean;
 }) {
@@ -213,7 +217,7 @@ export function GroupSettings({
             doesn't include watermarking and it's currently off, it's shown locked (Pro) rather than
             hidden. If it's somehow on without the entitlement, we keep it interactive so you can
             still turn it off. */}
-        {isEvent && !managedWatermark ? (
+        {isEvent && !managedWatermark && isOwner ? (
           <ToggleRow
             title="Watermark photos for guests"
             description={
@@ -243,7 +247,7 @@ export function GroupSettings({
         />
       </div>
 
-      {isEvent && !managedWatermark && canWatermark && watermarkOn ? (
+      {isEvent && !managedWatermark && canWatermark && watermarkOn && isOwner ? (
         <div className="flex items-center justify-between gap-4 border-t border-slate-100 px-5 py-4">
           <div>
             <p className="text-sm font-medium text-slate-900">Re-apply watermark</p>
@@ -270,7 +274,7 @@ export function GroupSettings({
         </div>
       ) : null}
 
-      {/* Owner-only (this whole panel renders for the owner): recompute face matches for every photo. */}
+      {/* Manager-allowed: recompute face matches for every photo (owner or a co-owner may run it). */}
       <div className="flex items-center justify-between gap-4 border-t border-slate-100 px-5 py-4">
         <div>
           <p className="text-sm font-medium text-slate-900">Rematch faces</p>
@@ -296,23 +300,25 @@ export function GroupSettings({
         </button>
       </div>
 
-      <div className="flex items-center justify-between gap-4 border-t border-slate-100 px-5 py-4">
-        <div>
-          <p className="text-sm font-medium text-slate-900">Delete group</p>
-          <p className="mt-0.5 text-sm text-slate-500">Removes the group and every photo, for everyone.</p>
+      {isOwner ? (
+        <div className="flex items-center justify-between gap-4 border-t border-slate-100 px-5 py-4">
+          <div>
+            <p className="text-sm font-medium text-slate-900">Delete group</p>
+            <p className="mt-0.5 text-sm text-slate-500">Removes the group and every photo, for everyone.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setDeleteError(null);
+              setDeleteOpen(true);
+            }}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 transition hover:bg-red-50"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setDeleteError(null);
-            setDeleteOpen(true);
-          }}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 transition hover:bg-red-50"
-        >
-          <Trash2 className="h-4 w-4" />
-          Delete
-        </button>
-      </div>
+      ) : null}
 
       <Dialog open={deleteOpen} onClose={() => !deleting && setDeleteOpen(false)} title="Delete group?">
         <p className="text-sm text-slate-600">

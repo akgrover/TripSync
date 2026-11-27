@@ -4,6 +4,7 @@
   --color-background: #ffffff;
   --color-foreground: #0f172a;
   --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-editorial: var(--font-instrument-serif), Georgia, serif;
 }
 
 html {
@@ -89,6 +90,63 @@ body {
   );
 }
 
+/* ---- Marketing site --------------------------------------------------------------- */
+
+.landing-page {
+  background-color: #fbfcfb;
+  background-image:
+    radial-gradient(55% 30% at 74% 5%, rgba(13, 148, 136, 0.07), transparent 72%),
+    linear-gradient(#fbfcfb, #ffffff 28%, #fbfcfb 100%);
+}
+
+.landing-hero-grid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.38;
+  background-image:
+    linear-gradient(rgba(15, 23, 42, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.035) 1px, transparent 1px);
+  background-size: 42px 42px;
+  -webkit-mask-image: linear-gradient(to bottom, black, transparent 78%);
+  mask-image: linear-gradient(to bottom, black, transparent 78%);
+}
+
+.landing-halo {
+  background: radial-gradient(circle, rgba(20, 184, 166, 0.16), rgba(20, 184, 166, 0) 68%);
+  filter: blur(10px);
+}
+
+.landing-card {
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.03),
+    0 14px 34px -30px rgba(15, 23, 42, 0.28);
+}
+
+.landing-card-interactive {
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+.landing-card-interactive:hover {
+  transform: translateY(-2px);
+  border-color: rgba(148, 163, 184, 0.55);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.03),
+    0 18px 42px -32px rgba(15, 23, 42, 0.24);
+}
+
+.landing-dark {
+  background-color: #0c1918;
+  background-image:
+    radial-gradient(circle at 88% 12%, rgba(45, 212, 191, 0.13), transparent 34%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.025), transparent 42%);
+}
+
 /* Printable A5 QR poster: when printing, hide the whole app and show only the poster at true A5
    (the on-screen preview scales it down with a transform, which we reset here). */
 @media print {
@@ -143,6 +201,24 @@ body {
     radial-gradient(circle at 0% 0%, rgba(45, 212, 191, 0.18), transparent 38%),
     linear-gradient(180deg, #0b4946 0%, #063331 100%);
   box-shadow: 18px 0 45px -35px rgba(2, 44, 42, 0.8);
+}
+
+.studio-onboarding-panel {
+  background-color: #073b3a;
+  background-image:
+    radial-gradient(circle at 12% 8%, rgba(45, 212, 191, 0.22), transparent 32%),
+    radial-gradient(circle at 88% 72%, rgba(52, 211, 153, 0.13), transparent 36%),
+    linear-gradient(145deg, #0b4a47 0%, #063735 50%, #052b2a 100%);
+}
+.studio-onboarding-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.14;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.65) 0.8px, transparent 0.8px);
+  background-size: 22px 22px;
+  -webkit-mask-image: linear-gradient(to bottom, black, transparent 72%);
+  mask-image: linear-gradient(to bottom, black, transparent 72%);
 }
 
 .studio-input {
