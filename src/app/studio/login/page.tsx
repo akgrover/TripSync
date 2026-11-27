@@ -104,8 +104,25 @@ export default function StudioLoginPage() {
   // Guest branch: enter an album code to jump straight into that album.
   const [albumCode, setAlbumCode] = useState("");
 
+  // Refer & Earn: an optional code captured on the role step (sign-up only). Prefilled from a
+  // ?ref=CODE share link. `referralNote` surfaces a gentle rejection message.
+  const [referralCode, setReferralCode] = useState("");
+  const [referralNote, setReferralNote] = useState<string | null>(null);
+
   const phoneDigits = phone.replace(/\D/g, "").slice(-10);
   const phoneValid = phoneDigits.length === 10;
+
+  // Prefill the referral code from ?ref= on a share link (sanitised to the code alphabet).
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const ref = new URLSearchParams(window.location.search).get("ref");
+    if (ref) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of the share-link param
+      setReferralCode(ref.toUpperCase().replace(/[^A-Z2-9]/g, "").slice(0, 12));
+    }
+  }, []);
 
   // Resend countdown (setState lives in the timeout callback, not the effect body).
   useEffect(() => {
@@ -242,6 +259,26 @@ export default function StudioLoginPage() {
     setSavingRole(role);
     setError(null);
     try {
+      // Attach the referrer BEFORE locking the role — the server accepts a code only pre-role. A code
+      // that's simply wrong (not found / your own) stops here so the user can fix or clear it; any
+      // other outcome (applied, or a network hiccup) never blocks sign-up.
+      const code = referralCode.trim();
+      if (code) {
+        setReferralNote(null);
+        try {
+          const result = await studioApi.applyReferral(code);
+          if (!result.applied) {
+            const note = referralRejectionNote(result.reason);
+            if (note) {
+              setReferralNote(note);
+              setSavingRole(null);
+              return;
+            }
+          }
+        } catch {
+          // Don't block onboarding on a referral hiccup — proceed to set the role.
+        }
+      }
       const res = await studioApi.setRole(role);
       setAuthedUser(res.user);
       setSavingRole(null);
@@ -558,6 +595,29 @@ export default function StudioLoginPage() {
                     disabled={savingRole !== null}
                     onClick={() => void pickRole("guest")}
                   />
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                    <label htmlFor="referral-code" className="block text-sm font-semibold text-slate-800">
+                      Referral code <span className="font-normal text-slate-400">(optional)</span>
+                    </label>
+                    <input
+                      id="referral-code"
+                      value={referralCode}
+                      onChange={(e) => {
+                        setReferralNote(null);
+                        setReferralCode(e.target.value.toUpperCase().replace(/[^A-Z2-9]/g, "").slice(0, 12));
+                      }}
+                      disabled={savingRole !== null}
+                      placeholder="Have a code? Enter it"
+                      className="studio-input mt-2 !min-h-11 uppercase tracking-[0.14em] disabled:opacity-60"
+                    />
+                    {referralNote ? (
+                      <p className="mt-2 text-sm text-amber-700">{referralNote}</p>
+                    ) : (
+                      <p className="mt-2 text-xs leading-5 text-slate-400">
+                        Credits the photographer who invited you. Can only be added now, during sign-up.
+                      </p>
+                    )}
+                  </div>
                 </div>
               ) : step === "studio" ? (
                 <div className="space-y-6">
@@ -689,6 +749,18 @@ export default function StudioLoginPage() {
       </main>
     </div>
   );
+}
+
+// A gentle, actionable note for a rejected referral code. Returns null for outcomes the user can't
+// act on (already set / locked), so onboarding just proceeds in those cases.
+function referralRejectionNote(reason?: string): string | null {
+  if (reason === "not_found") {
+    return "That referral code wasn't found. Check it, or clear it to continue.";
+  }
+  if (reason === "self") {
+    return "You can't use your own referral code.";
+  }
+  return null;
 }
 
 function OnboardingProgress({ step }: { step: Step }) {

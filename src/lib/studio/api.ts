@@ -189,6 +189,14 @@ export const studioApi = {
   // access is still governed by isHost / entitlements server-side.
   setRole: (role: "photographer" | "guest") =>
     request<{ user: StudioUser }>("/me", { method: "PATCH", body: { role } }),
+
+  // Sign-up-only: attach a referrer by code. Returns { applied } — a rejected code is NOT an error
+  // (200 with applied:false + reason), so callers show a gentle note without blocking onboarding.
+  applyReferral: (code: string) =>
+    request<{ applied: boolean; reason?: string }>("/me/referral", {
+      method: "POST",
+      body: { code },
+    }),
   // Pay-to-unlock earnings for the signed-in photographer (rev_share). Read-only.
   getEarnings: () => request<StudioEarnings>("/billing/earnings"),
   // Request a withdrawal of the full available balance. Body carries only the confirmed/updated UPI;
