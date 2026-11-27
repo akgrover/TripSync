@@ -128,6 +128,23 @@ export type AdminWithdrawalRow = {
   adminNote: string | null;
 };
 
+// Refer & Earn (docs/REFERRAL_MODEL.md), from GET /referrals. Photographers only. Amounts in paise.
+export type ReferralHistoryEntry = {
+  id: string;
+  type: "earn" | "spend";
+  amountPaise: number;
+  currency: string;
+  status: "applied" | "reserved" | "released";
+  createdAt: string;
+};
+
+export type ReferralSummary = {
+  code: string | null;
+  balancePaise: number;
+  referredCount: number;
+  history: ReferralHistoryEntry[];
+};
+
 export type AuthResponse = {
   user: StudioUser;
   accessToken: string;

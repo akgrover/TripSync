@@ -16,6 +16,7 @@ import type {
   PlanOffer,
   PublicEvent,
   PublicPayStatus,
+  ReferralSummary,
   StudioEarnings,
   StudioTrip,
   StudioUser,
@@ -197,6 +198,9 @@ export const studioApi = {
       method: "POST",
       body: { code },
     }),
+
+  // Refer & Earn summary for the sidebar tab (photographers only; 403 otherwise).
+  getReferrals: () => request<ReferralSummary>("/referrals"),
   // Pay-to-unlock earnings for the signed-in photographer (rev_share). Read-only.
   getEarnings: () => request<StudioEarnings>("/billing/earnings"),
   // Request a withdrawal of the full available balance. Body carries only the confirmed/updated UPI;

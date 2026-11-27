@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Camera, Headphones, Home, LogOut, Settings, User, Wallet } from "lucide-react";
+import { Camera, Gift, Headphones, Home, LogOut, Settings, User, Wallet } from "lucide-react";
 
 import { clearTokens, getAccessToken } from "@/lib/studio/auth";
 import { clearCachedMe, getCachedMe } from "@/lib/studio/profile";
@@ -16,6 +16,8 @@ const NAV_BASE = [
 // Earnings tab is PARKED (no revenue share / payouts in the platform-fee model). Kept here but never
 // added to the nav — `showEarnings` is forced false below. Revive by restoring that condition.
 const EARNINGS_ITEM = { href: "/studio/earnings", label: "Earnings", icon: Wallet };
+// Refer & Earn — shown to photographers only (they're the ones who earn/spend credit).
+const REFERRALS_ITEM = { href: "/studio/referrals", label: "Refer & Earn", icon: Gift };
 
 // Client-side auth gate + chrome for the Studio portal. The login route renders bare (no gate, no
 // header); every other /studio route requires a token or bounces to /studio/login.
@@ -39,6 +41,8 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
   const [planLabel, setPlanLabel] = useState<string | null>(null);
   // Earnings tab is parked (always hidden) — see EARNINGS_ITEM note above.
   const [showEarnings, setShowEarnings] = useState(false);
+  // Refer & Earn tab — photographers only.
+  const [showReferrals, setShowReferrals] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time client-only auth read on mount
@@ -66,6 +70,8 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
         // photographers out — the per-event charge is just our platform fee (photographers bill
         // clients directly). Keep the page/plumbing but hide the tab. (Was: rev_share || hasEarnings.)
         setShowEarnings(false);
+        // Refer & Earn is for photographers (self-declared, or anyone who already hosts an event).
+        setShowReferrals(user.role === "photographer" || Boolean(user.isHost));
       })
       .catch(() => undefined);
     return () => {
@@ -102,11 +108,15 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Profile/Settings/Earnings own their own subtrees; Home owns everything else under /studio
-  // (incl. groups).
-  const nav = showEarnings
-    ? [NAV_BASE[0], NAV_BASE[1], EARNINGS_ITEM, NAV_BASE[2]]
-    : NAV_BASE;
+  // Profile/Settings/Earnings/Refer&Earn own their own subtrees; Home owns everything else under
+  // /studio (incl. groups). Order: Home, Profile, [Earnings], [Refer & Earn], Settings.
+  const nav = [
+    NAV_BASE[0],
+    NAV_BASE[1],
+    ...(showEarnings ? [EARNINGS_ITEM] : []),
+    ...(showReferrals ? [REFERRALS_ITEM] : []),
+    NAV_BASE[2],
+  ];
   const current = (pathname ?? "").replace(/\/+$/, "");
   const activeHref = current.startsWith("/studio/settings")
     ? "/studio/settings"
@@ -114,7 +124,9 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
       ? "/studio/profile"
       : current.startsWith("/studio/earnings")
         ? "/studio/earnings"
-        : "/studio";
+        : current.startsWith("/studio/referrals")
+          ? "/studio/referrals"
+          : "/studio";
 
   return (
     <div className="bg-studio flex min-h-dvh">
