@@ -1,3 +1,4 @@
+import type { UploadCapacity } from "./upload-capacity";
 import { API_BASE_URL } from "./config";
 import { clearTokens, getAccessToken, getRefreshToken, setTokens } from "./auth";
 import type {
@@ -9,6 +10,7 @@ import type {
   AdminWithdrawalRow,
   AuthResponse,
   CheckoutInfo,
+  GroupCheckoutResult,
   EventPricingConfigView,
   EventPricingTier,
   GroupPaymentLink,
@@ -39,6 +41,7 @@ type RequestOptions = {
   body?: unknown;
   // Set false for unauthenticated endpoints (OTP start/verify). Defaults to attaching the token.
   auth?: boolean;
+  signal?: AbortSignal;
 };
 
 // Access tokens live ~15 min; the refresh token ~30 days. When a call 401s we silently exchange the
@@ -110,6 +113,7 @@ async function refreshAccessToken(): Promise<boolean> {
 }
 
 async function request<T>(path: string, options: RequestOptions = {}, retried = false): Promise<T> {
+  options.signal?.throwIfAborted();
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (options.auth !== false) {
     let token = getAccessToken();
@@ -128,6 +132,7 @@ async function request<T>(path: string, options: RequestOptions = {}, retried = 
     method: options.method ?? "GET",
     headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    signal: options.signal,
   });
 
   if (res.status === 401 && options.auth !== false) {
@@ -317,6 +322,15 @@ export const studioApi = {
       method: "POST",
       auth: false,
     }),
+  // Owner-only, authenticated credit-aware checkout: applies referral credit to the fee. Either
+  // unlocks immediately ({ unlocked: true }) or returns the widget config for the remainder.
+  createAuthedGroupCheckout: (tripId: string) =>
+    request<GroupCheckoutResult>(`/trips/${tripId}/unlock-checkout`, { method: "POST" }),
+  // Release a reserved credit when the payment window is dismissed (best-effort; idempotent).
+  cancelAuthedGroupCheckout: (tripId: string, paymentId: string) =>
+    request<{ ok: boolean }>(`/trips/${tripId}/unlock-checkout/${paymentId}/cancel`, {
+      method: "POST",
+    }),
   // Owner-only: permanently delete the group and all its photos.
   deleteGroup: (tripId: string) => request<void>(`/trips/${tripId}`, { method: "DELETE" }),
   // Remove a photo for everyone in the group (owner or the photo's uploader).
@@ -326,7 +340,7 @@ export const studioApi = {
     }),
   getTripPhotos: (
     tripId: string,
-    opts: { scope?: "all" | "mine"; cursor?: string; limit?: number; folder?: string } = {},
+    opts: { scope?: "all" | "mine"; cursor?: string; limit?: number; folder?: string; ids?: string[]; signal?: AbortSignal } = {},
   ) => {
     const params = new URLSearchParams({
       scope: opts.scope ?? "all",
@@ -339,24 +353,29 @@ export const studioApi = {
     if (opts.folder) {
       params.set("folder", opts.folder);
     }
-    return request<PhotosPage>(`/trips/${tripId}/photos?${params.toString()}`);
+    if (opts.ids) params.set("ids", opts.ids.join(","));
+    return request<PhotosPage>(`/trips/${tripId}/photos?${params.toString()}`, { signal: opts.signal });
   },
 
   // Uploads (3-step signed flow, same as the mobile app). `folderId` files the whole batch under one
   // logical folder (omitted = ungrouped).
-  createUploadBatch: (tripId: string, totalCount: number, folderId?: string) =>
+  getUploadCapacity: (tripId: string, signal?: AbortSignal) =>
+    request<UploadCapacity>(`/trips/${tripId}/upload-capacity`, { signal }),
+  createUploadBatch: (tripId: string, totalCount: number, folderId?: string, signal?: AbortSignal) =>
     request<{ batch: { id: string; totalCount: number; processedCount: number; status: string } }>(
       `/trips/${tripId}/upload-batches`,
-      { method: "POST", body: { totalCount, ...(folderId ? { folderId } : {}) } },
+      { method: "POST", body: { totalCount, ...(folderId ? { folderId } : {}) }, signal },
     ),
   initPhotoUpload: (
     tripId: string,
     batchId: string,
     body: { fileName: string; contentType: string; contentHash?: string; contentSize?: number },
+    signal?: AbortSignal,
   ) =>
     request<PhotoInitResult>(`/trips/${tripId}/upload-batches/${batchId}/photos/init`, {
       method: "POST",
       body,
+      signal,
     }),
   completePhotoUpload: (
     tripId: string,
@@ -370,10 +389,11 @@ export const studioApi = {
       contentHash?: string;
       contentSize?: number;
     },
+    signal?: AbortSignal,
   ) =>
     request<{ photo: { id: string } }>(
       `/trips/${tripId}/upload-batches/${batchId}/photos/complete`,
-      { method: "POST", body },
+      { method: "POST", body, signal },
     ),
 
   // Payments: list purchasable plans, start a checkout, then verify the provider's success callback.
@@ -480,11 +500,12 @@ export type PhotoInitResult =
 
 // Upload the original bytes straight to S3. No auth header (the URL is presigned); the Content-Type
 // MUST equal the one passed to init, or S3 rejects the presigned signature.
-export async function putToS3(uploadUrl: string, file: File, contentType: string): Promise<void> {
+export async function putToS3(uploadUrl: string, file: File, contentType: string, signal?: AbortSignal): Promise<void> {
   const res = await fetch(uploadUrl, {
     method: "PUT",
     body: file,
     headers: { "Content-Type": contentType },
+    signal,
   });
   if (!res.ok) {
     throw new ApiError(`Storage upload failed (${res.status})`, res.status);

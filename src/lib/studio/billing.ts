@@ -82,6 +82,54 @@ export async function startPlanCheckout(plan: string): Promise<CheckoutOutcome> 
   });
 }
 
+// Owner-facing, AUTHENTICATED credit-aware group checkout, run from the Studio paywall. Applies the
+// owner's referral credit: if it covers the whole fee the API unlocks immediately (no widget) and we
+// resolve "success"; otherwise we open the provider widget for the remainder and verify as an authed
+// payment. On dismiss we release the reserved credit via the cancel endpoint. Distinct from the public
+// /pay rail (startGroupUnlockCheckout below).
+export async function startAuthedGroupCheckout(tripId: string): Promise<CheckoutOutcome> {
+  const result = await studioApi.createAuthedGroupCheckout(tripId);
+  // Fully covered by credit — already unlocked server-side.
+  if ("unlocked" in result) {
+    return "success";
+  }
+  const info = result;
+  if (info.provider !== "razorpay") {
+    throw new Error("This payment method isn't supported in the web app yet.");
+  }
+  const loaded = await loadRazorpay();
+  if (!loaded || !window.Razorpay) {
+    throw new Error("Couldn't load the payment window. Check your connection and try again.");
+  }
+
+  return new Promise<CheckoutOutcome>((resolve, reject) => {
+    const rz = new window.Razorpay!({
+      key: info.keyId,
+      order_id: info.orderId,
+      amount: info.amountPaise,
+      currency: info.currency,
+      name: "TripSync",
+      description: info.label,
+      handler: (response) => {
+        void studioApi
+          .verifyPayment({ ...response })
+          .then((res) => (res.ok ? resolve("success") : reject(new Error("Payment couldn't be confirmed."))))
+          .catch(() => reject(new Error("Payment couldn't be confirmed.")));
+      },
+      modal: {
+        ondismiss: () => {
+          // Give the reserved credit back right away (the hourly sweep is the backstop).
+          if (info.paymentId) {
+            void studioApi.cancelAuthedGroupCheckout(tripId, info.paymentId).catch(() => undefined);
+          }
+          resolve("dismissed");
+        },
+      },
+    });
+    rz.open();
+  });
+}
+
 // Public pay-to-unlock checkout, run from the /pay page by an UN-LOGGED-IN client. Unlike the plan
 // checkout, there's no authed verify step — the provider webhook is the source of truth and unlocks
 // the group server-side, so the page polls the public status endpoint after a "success" here. Resolves

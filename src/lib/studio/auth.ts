@@ -5,6 +5,20 @@
 
 const ACCESS_KEY = "tripsync.studio.accessToken";
 const REFRESH_KEY = "tripsync.studio.refreshToken";
+export const STUDIO_AUTH_CHANGED = "tripsync:auth-changed";
+
+// Identity only; this is not token verification or an authorization check.
+export function getSessionAccountId(): string | null {
+  const token = getAccessToken();
+  if (!token) return null;
+  try {
+    const encoded = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(atob(encoded.padEnd(Math.ceil(encoded.length / 4) * 4, "=")));
+    return typeof payload.sub === "string" ? payload.sub : null;
+  } catch {
+    return null;
+  }
+}
 
 export function getAccessToken(): string | null {
   if (typeof window === "undefined") {
@@ -28,6 +42,7 @@ export function setTokens(tokens: { accessToken: string; refreshToken?: string }
   if (tokens.refreshToken) {
     window.localStorage.setItem(REFRESH_KEY, tokens.refreshToken);
   }
+  window.dispatchEvent(new Event(STUDIO_AUTH_CHANGED));
 }
 
 export function clearTokens(): void {
@@ -36,6 +51,7 @@ export function clearTokens(): void {
   }
   window.localStorage.removeItem(ACCESS_KEY);
   window.localStorage.removeItem(REFRESH_KEY);
+  window.dispatchEvent(new Event(STUDIO_AUTH_CHANGED));
 }
 
 export function isSignedIn(): boolean {

@@ -225,6 +225,9 @@ export type GroupPaymentLink = {
   expiresAt: string | null;
   payToken: string;
   storageUsedBytes: number;
+  // The owner's spendable referral credit (paise). Applied at the authenticated checkout to reduce
+  // the fee: the owner pays max(0, fee − credit). 0 when they have none.
+  availableCreditPaise: number;
   price: { amountPaise: number; currency: string; tierLabel: string } | null;
   // What it costs to extend the event once expired (shown in the renew UI).
   renewalPrice: { amountPaise: number; currency: string; tierLabel: string } | null;
@@ -249,6 +252,7 @@ export type StudioPhoto = {
   uri: string;
   // Small WebP for the grid; absent until the backend worker has generated it.
   thumbUri?: string;
+  thumbStatus?: "pending" | "ready" | "failed";
   aspectRatio: number;
   uploadedBy: string;
   location?: string;
@@ -284,7 +288,14 @@ export type CheckoutInfo = {
   currency: string;
   plan: string;
   label: string;
+  // Group credit-aware checkout only: our Payment id, used to release a reserved credit if the
+  // payment window is dismissed. Absent for plan checkouts.
+  paymentId?: string;
 };
+
+// The authenticated group checkout either unlocks immediately (credit covered the whole fee) or
+// returns the provider widget config for the remainder.
+export type GroupCheckoutResult = { unlocked: true } | CheckoutInfo;
 
 // Admin portal (hidden /studio/records, gated server-side by the ADMIN_PHONES allowlist). One row
 // per photographer who owns an Event group, plus platform totals. Mirrors the API's AdminOverview.

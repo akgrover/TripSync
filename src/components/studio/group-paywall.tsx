@@ -4,15 +4,16 @@ import { useEffect, useState } from "react";
 import { Check, Copy, CreditCard, Loader2, Lock, LockOpen, TimerOff } from "lucide-react";
 
 import { ApiError, studioApi } from "@/lib/studio/api";
+import { startAuthedGroupCheckout } from "@/lib/studio/billing";
 import { formatBytes, formatDate } from "@/lib/studio/format";
-import { formatRupees } from "@/lib/studio/money";
+import { formatRupees, formatRupeesPrecise } from "@/lib/studio/money";
 import type { GroupPaymentLink, StudioTrip } from "@/lib/studio/types";
 
 // Owner-facing panel for a pay-to-unlock event group. The per-event charge is TripSync's PLATFORM FEE
 // (AI face matching + hosting), paid by the photographer — not a client purchase, and TripSync no
 // longer shares revenue or pays photographers out. Shows the lock/expiry state, the fee, and a link
 // to TripSync's secure payment page (/pay?token=…, no login); the group unlocks via the webhook.
-export function GroupPaywall({ trip }: { trip: StudioTrip }) {
+export function GroupPaywall({ trip, reload = 0 }: { trip: StudioTrip; reload?: number }) {
   // `expired` = paid once, term since lapsed (re-locked by the clock). `unlocked` = paid and still
   // live. The stored lock flag alone can't tell these apart, so check `expired` first.
   const expired = trip.revShare?.expired === true;
@@ -21,6 +22,7 @@ export function GroupPaywall({ trip }: { trip: StudioTrip }) {
   const [loading, setLoading] = useState(!unlocked);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     // Fetch the pay link + price for both the locked (unlock) and expired (renew) cases; only a live
@@ -32,7 +34,7 @@ export function GroupPaywall({ trip }: { trip: StudioTrip }) {
     void studioApi
       .getPaymentLink(trip.id)
       .then((res) => {
-        if (active) setLink(res);
+        if (active) { setLink(res); setError(null); }
       })
       .catch((err) => {
         if (active) {
@@ -45,7 +47,7 @@ export function GroupPaywall({ trip }: { trip: StudioTrip }) {
     return () => {
       active = false;
     };
-  }, [trip.id, unlocked]);
+  }, [trip.id, unlocked, reload]);
 
   const payUrl =
     link?.payToken && typeof window !== "undefined"
@@ -60,6 +62,24 @@ export function GroupPaywall({ trip }: { trip: StudioTrip }) {
       setTimeout(() => setCopied(false), 2000);
     } catch {
       setError("Couldn't copy the link. Select and copy it manually.");
+    }
+  }
+
+  // Authenticated, credit-aware checkout (applies the owner's referral credit). Reloads on success so
+  // the now-unlocked state renders; a dismissed widget just clears the busy state.
+  async function pay() {
+    setError(null);
+    setBusy(true);
+    try {
+      const outcome = await startAuthedGroupCheckout(trip.id);
+      if (outcome === "success") {
+        window.location.reload();
+        return;
+      }
+      setBusy(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Payment couldn't be completed. Please try again.");
+      setBusy(false);
     }
   }
 
@@ -112,43 +132,72 @@ export function GroupPaywall({ trip }: { trip: StudioTrip }) {
           This event is larger than our standard tiers. Contact TripSync to set the fee.
         </p>
       ) : link ? (
-        <>
-          <p className="mt-3 text-sm text-slate-700">
-            {expired ? "Renewal fee: " : "Platform fee: "}
-            <span className="font-semibold text-slate-900">
-              {(() => {
-                const amt = expired ? link.renewalPrice : link.price;
-                return amt ? formatRupees(amt.amountPaise) : "—";
-              })()}
-            </span>
-            {!expired && link.price ? (
-              <span className="text-slate-400"> · based on {formatBytes(link.storageUsedBytes)} stored</span>
-            ) : null}
-          </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <a
-              href={payUrl || "#"}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700"
-            >
-              <CreditCard className="h-4 w-4" />
-              {expired ? "Pay renewal fee" : "Pay fee & unlock"}
-            </a>
-            <button
-              type="button"
-              onClick={() => void copyLink()}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-            >
-              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              {copied ? "Copied" : "Copy pay link"}
-            </button>
-          </div>
-          <p className="mt-2 text-xs text-slate-500">
-            Opens TripSync&apos;s secure payment page. This is separate from the invite code / QR your
-            guests use to view the album.
-          </p>
-        </>
+        (() => {
+          const amt = expired ? link.renewalPrice : link.price;
+          const fee = amt?.amountPaise ?? 0;
+          const credit = Math.min(Math.max(0, link.availableCreditPaise ?? 0), fee);
+          const net = Math.max(0, fee - credit);
+          const fullyCovered = fee > 0 && net === 0;
+          return (
+            <>
+              <p className="mt-3 text-sm text-slate-700">
+                {expired ? "Renewal fee: " : "Platform fee: "}
+                <span className="font-semibold text-slate-900">
+                  {amt ? formatRupees(fee) : "—"}
+                </span>
+                {!expired && link.price ? (
+                  <span className="text-slate-400"> · based on {formatBytes(link.storageUsedBytes)} stored</span>
+                ) : null}
+              </p>
+              {credit > 0 ? (
+                <div className="mt-2 rounded-xl border border-teal-100 bg-teal-50/60 px-3 py-2 text-sm">
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span>Referral credit applied</span>
+                    <span className="font-medium text-teal-700">−{formatRupeesPrecise(credit)}</span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between font-semibold text-slate-900">
+                    <span>You pay</span>
+                    <span>{formatRupeesPrecise(net)}</span>
+                  </div>
+                </div>
+              ) : null}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void pay()}
+                  disabled={busy}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:opacity-60"
+                >
+                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                  {busy
+                    ? "Processing…"
+                    : fullyCovered
+                      ? "Unlock with credit"
+                      : expired
+                        ? "Pay renewal fee"
+                        : "Pay fee & unlock"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void copyLink()}
+                  disabled={busy}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                >
+                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  {copied ? "Copied" : "Copy pay link"}
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-slate-500">
+                {credit > 0
+                  ? "Your referral credit is applied automatically. "
+                  : ""}
+                Pay securely here in Studio. The &ldquo;copy pay link&rdquo; option shares TripSync&apos;s
+                public payment page (full fee, no credit) — separate from the invite code / QR your
+                guests use.
+              </p>
+            </>
+          );
+        })()
       ) : null}
     </div>
   );

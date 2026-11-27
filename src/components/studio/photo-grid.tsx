@@ -6,12 +6,18 @@ import { ImageIcon, Images, Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { studioApi, ApiError } from "@/lib/studio/api";
 import { clearTokens } from "@/lib/studio/auth";
 import type { StudioPhoto } from "@/lib/studio/types";
+import { mergePhotos, refreshGallery } from "@/lib/studio/live-gallery";
+import { useUploadJobs } from "./upload-manager-provider";
 import { Dialog } from "./dialog";
 
-// `reload` is a counter the parent bumps (once) after an upload completes, to refetch the first page.
+// `reload` advances periodically as uploads land, and once more when the job finishes.
 // `canDelete` (owner) enables per-photo delete-for-everyone. `folder` (a folder id) filters to that
 // folder; undefined shows the whole group.
-export function PhotoGrid({
+export function PhotoGrid(props: React.ComponentProps<typeof PhotoGridContent>) {
+  return <PhotoGridContent key={`${props.tripId}:${props.folder ?? "all"}`} {...props} />;
+}
+
+function PhotoGridContent({
   tripId,
   folder,
   reload = 0,
@@ -36,83 +42,158 @@ export function PhotoGrid({
   // Photo pending delete-for-everyone confirmation.
   const [pendingDelete, setPendingDelete] = useState<StudioPhoto | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [arrivals, setArrivals] = useState<StudioPhoto[]>([]);
+  const [refreshError, setRefreshError] = useState(false);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const jobs = useUploadJobs();
+  const uploading = jobs.some((job) => job.tripId === tripId && job.status !== "finished");
+  const sessionRef = useRef<{
+    controller: AbortController;
+    photos: StudioPhoto[];
+    arrivals: StudioPhoto[];
+    nextCursor: string | null;
+    busy: boolean;
+    refreshAgain: boolean;
+    pendingOffset: number;
+    deleted: Set<string>;
+    settleUntil: number;
+  } | null>(null);
+  const refreshRef = useRef<() => void>(() => {});
+
 
   async function confirmDelete() {
     const photo = pendingDelete;
     if (!photo || deleting) {
       return;
     }
+    const session = sessionRef.current;
     setDeleting(true);
     try {
       await studioApi.deletePhotoForAll(tripId, photo.id);
-      setPhotos((prev) => prev.filter((p) => p.id !== photo.id));
+      if (sessionRef.current !== session || !session) return;
+      session.deleted.add(photo.id);
+      session.photos = session.photos.filter((p) => p.id !== photo.id);
+      session.arrivals = session.arrivals.filter((p) => p.id !== photo.id);
+      setPhotos(session.photos);
+      setArrivals(session.arrivals);
       setTotal((t) => Math.max(0, t - 1));
       setPendingDelete(null);
     } catch {
       // Keep the photo; the dialog stays so the user can retry or cancel.
     } finally {
-      setDeleting(false);
+      if (sessionRef.current === session) setDeleting(false);
     }
   }
 
-  // Fetch page 1 exactly once per (tripId, folder, reload, refreshTick). The ref dedupes repeat effect
-  // runs — notably React Strict Mode's double-invoke in dev — so the network call never fires twice.
-  const fetchedKeyRef = useRef<string | null>(null);
-  // The folder whose photos are currently shown, so we can tell a folder *switch* (must clear + show
-  // loading, or we'd briefly show the previous folder's photos) from an in-place refetch (keep them).
-  const shownFolderRef = useRef<string | null | undefined>(undefined);
-
   useEffect(() => {
-    const key = `${tripId}:${folder ?? "all"}:${reload}:${refreshTick}`;
-    if (fetchedKeyRef.current === key) {
-      return;
-    }
-    const folderChanged = shownFolderRef.current !== (folder ?? null);
-    fetchedKeyRef.current = key;
-    shownFolderRef.current = folder ?? null;
-    // On a folder switch, clear and show loading so the old folder's photos never linger. On an
-    // in-place refetch (upload/refresh of the same folder) keep the grid visible and swap data in.
-    if (folderChanged) {
-      setStatus("loading");
-      setPhotos([]);
-      setNextCursor(null);
-      setTotal(0);
-    }
-    void (async () => {
+    const session = {
+      controller: new AbortController(), photos: [] as StudioPhoto[], arrivals: [] as StudioPhoto[],
+      nextCursor: null as string | null, busy: false, refreshAgain: false,
+      pendingOffset: 0, deleted: new Set<string>(), settleUntil: Date.now() + 120_000,
+    };
+    sessionRef.current = session;
+    let initialized = false;
+    const current = () => sessionRef.current === session && !session.controller.signal.aborted;
+    const fetchPage = (options: { cursor?: string; ids?: string[]; limit?: number }) =>
+      studioApi.getTripPhotos(tripId, { scope: "all", folder, ...options, signal: session.controller.signal });
+    const refresh = async () => {
+      if (!current()) return;
+      if (session.busy) { session.refreshAgain = true; return; }
+      session.busy = true;
       try {
-        const res = await studioApi.getTripPhotos(tripId, { scope: "all", folder });
-        if (fetchedKeyRef.current !== key) return; // a newer request superseded this one
-        setPhotos(res.photos);
-        setTotal(res.total);
-        setNextCursor(res.nextCursor);
+        const result = await refreshGallery([...session.arrivals, ...session.photos], fetchPage, session.pendingOffset);
+        if (!current()) return;
+        const shownIds = new Set(session.photos.map((photo) => photo.id));
+        const valid = (photo: StudioPhoto) => !session.deleted.has(photo.id);
+        session.photos = result.existing.filter((photo) => shownIds.has(photo.id) && valid(photo));
+        session.arrivals = mergePhotos(result.arrivals, result.existing.filter((photo) => !shownIds.has(photo.id))).filter(valid);
+        // At the top, insert immediately. While browsing older rows, keep their positions stable.
+        if (!session.photos.length || (gridRef.current?.getBoundingClientRect().top ?? 0) >= 0) {
+          session.photos = mergePhotos(session.arrivals, session.photos);
+          session.arrivals = [];
+        }
+        if (!initialized) session.nextCursor = result.nextCursor;
+        session.pendingOffset = result.pendingOffset;
+        initialized = true;
+        setPhotos(session.photos);
+        setArrivals(session.arrivals);
+        setNextCursor(session.nextCursor);
+        setTotal(result.total);
         setStatus("ready");
+        setRefreshError(false);
       } catch (err) {
-        if (fetchedKeyRef.current !== key) return;
+        if (!current()) return;
         if (err instanceof ApiError && err.status === 401) {
           clearTokens();
           window.location.replace("/studio/login");
           return;
         }
-        setStatus("error");
+        if (!initialized) setStatus("error");
+        else setRefreshError(true);
+      } finally {
+        if (current()) {
+          session.busy = false;
+          if (session.refreshAgain) { session.refreshAgain = false; void refresh(); }
+        }
       }
-    })();
-  }, [tripId, folder, reload, refreshTick]);
+    };
+    refreshRef.current = () => { void refresh(); };
+    void refresh();
+    // Let asynchronous thumbnails settle after returning to a group or finishing an upload.
+    const timer = window.setInterval(() => {
+      if (document.hidden || Date.now() > session.settleUntil) return;
+      if ([...session.photos, ...session.arrivals].some((photo) => photo.thumbStatus === "pending")) void refresh();
+    }, 5000);
+    return () => { session.controller.abort(); window.clearInterval(timer); };
+  }, [tripId, folder]);
+
+  useEffect(() => {
+    if (sessionRef.current) sessionRef.current.settleUntil = Date.now() + 120_000;
+    refreshRef.current();
+  }, [reload, refreshTick]);
+
+  useEffect(() => {
+    if (!uploading) return;
+    const timer = window.setInterval(() => {
+      if (document.hidden) return;
+      if (sessionRef.current) sessionRef.current.settleUntil = Date.now() + 120_000;
+      refreshRef.current();
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [uploading]);
 
   async function loadMore() {
-    if (!nextCursor || loadingMore) {
-      return;
-    }
+    const session = sessionRef.current;
+    if (!session?.nextCursor || session.busy) return;
+    session.busy = true;
     setLoadingMore(true);
     try {
-      const res = await studioApi.getTripPhotos(tripId, { scope: "all", cursor: nextCursor, folder });
-      setPhotos((prev) => [...prev, ...res.photos]);
+      const res = await studioApi.getTripPhotos(tripId, { scope: "all", cursor: session.nextCursor, folder, signal: session.controller.signal });
+      if (sessionRef.current !== session || session.controller.signal.aborted) return;
+      session.photos = mergePhotos(session.photos, res.photos).filter((photo) => !session.deleted.has(photo.id));
+      session.nextCursor = res.nextCursor;
+      setPhotos(session.photos);
       setNextCursor(res.nextCursor);
       setTotal(res.total);
     } catch {
-      // Keep what's shown; the button stays so the user can retry.
+      // Keep the loaded pages and allow another attempt.
     } finally {
-      setLoadingMore(false);
+      if (sessionRef.current === session && !session.controller.signal.aborted) {
+        session.busy = false;
+        setLoadingMore(false);
+        if (session.refreshAgain) { session.refreshAgain = false; refreshRef.current(); }
+      }
     }
+  }
+
+  function revealArrivals() {
+    const session = sessionRef.current;
+    if (!session) return;
+    session.photos = mergePhotos(session.arrivals, session.photos);
+    session.arrivals = [];
+    setPhotos(session.photos);
+    setArrivals([]);
+    gridRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
   }
 
   if (status === "loading") {
@@ -125,7 +206,7 @@ export function PhotoGrid({
     );
   }
   if (status === "error") {
-    return <p className="text-red-600">Couldn&apos;t load photos. Please retry.</p>;
+    return <button type="button" onClick={() => setRefreshTick((n) => n + 1)} className="text-red-600">Couldn&apos;t load photos. Retry</button>;
   }
   if (photos.length === 0) {
     // A specific folder that's empty: a light inline note.
@@ -156,10 +237,10 @@ export function PhotoGrid({
   }
 
   return (
-    <div>
+    <div ref={gridRef}>
       <div className="mb-3 flex items-center justify-between">
         <p className="text-sm text-slate-500">
-          {total} {total === 1 ? "photo" : "photos"}
+          {total.toLocaleString()} {total === 1 ? "photo" : "photos"}{uploading ? " · Updating live" : ""}
         </p>
         <button
           type="button"
@@ -170,6 +251,8 @@ export function PhotoGrid({
           Refresh
         </button>
       </div>
+      {refreshError ? <p role="status" className="mb-3 text-xs text-amber-700">Couldn&apos;t refresh photos. Your loaded photos are still here; use Refresh to try again.</p> : null}
+      {arrivals.length ? <button type="button" onClick={revealArrivals} className="mb-3 w-full rounded-lg bg-teal-50 px-3 py-2 text-sm font-medium text-teal-800">Show {arrivals.length.toLocaleString()} new photos</button> : null}
       <div className="grid grid-cols-3 gap-1 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
         {photos.map((photo) => (
           <div
@@ -187,7 +270,7 @@ export function PhotoGrid({
             ) : (
               // Thumbnail not generated yet (worker runs shortly after upload) — avoid pulling the
               // full-size original into the grid; show a light placeholder instead.
-              <div className="flex h-full w-full items-center justify-center text-slate-300">
+              <div title={photo.thumbStatus === "pending" ? "Preparing preview…" : "Preview unavailable"} className="flex h-full w-full items-center justify-center text-slate-300">
                 <ImageIcon className="h-5 w-5" />
               </div>
             )}

@@ -18,6 +18,7 @@ import { GroupSettings } from "@/components/studio/group-settings";
 import { MemberAccess } from "@/components/studio/member-access";
 import { UploadPanel } from "@/components/studio/upload-panel";
 import { PhotoGrid } from "@/components/studio/photo-grid";
+import { useUploadRevision } from "@/components/studio/upload-manager-provider";
 
 function folderChipClass(active: boolean) {
   return `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition ${
@@ -33,7 +34,7 @@ function GroupDetail() {
   const router = useRouter();
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [trip, setTrip] = useState<StudioTrip | null>(null);
-  const [reload, setReload] = useState(0);
+  const reload = useUploadRevision(id);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
@@ -63,12 +64,6 @@ function GroupDetail() {
   // The folder currently being viewed, resolved from the URL against the loaded trip. A missing or
   // stale/unknown `?folder=` falls back to "All photos" (null) rather than showing nothing.
   const currentFolder = folderParam ? trip?.folders?.find((f) => f.id === folderParam) ?? null : null;
-
-  // Refetch the grid once, when a whole upload completes. (Thumbnails that aren't ready yet show a
-  // placeholder; the grid's Refresh button pulls them in on demand — no background polling.)
-  function handleUploaded() {
-    setReload((n) => n + 1);
-  }
 
   // Folder navigation lives in the URL (?folder=…) so browser back/forward and refresh just work.
   function selectFolder(folderId: string | null) {
@@ -131,7 +126,7 @@ function GroupDetail() {
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [id, reload]);
 
   return (
     <div>
@@ -190,7 +185,7 @@ function GroupDetail() {
           ) : null}
 
           {/* Pay-to-unlock panel (owner-only): lock state, price, and the shareable payment link. */}
-          {trip.isOwner && trip.accessModel === "rev_share" ? <GroupPaywall trip={trip} /> : null}
+          {trip.isOwner && trip.accessModel === "rev_share" ? <GroupPaywall trip={trip} reload={reload} /> : null}
 
           <div className="mt-8 flex flex-wrap items-center gap-2">
             <button type="button" onClick={() => selectFolder(null)} className={folderChipClass(!currentFolder)}>
@@ -231,13 +226,13 @@ function GroupDetail() {
                   <span className="font-medium text-slate-700">{currentFolder.name}</span>.
                 </p>
               ) : null}
-              {/* Keyed by folder so switching folders resets the panel's progress/selection. Compact
-                  (slim) once the group already has photos, so the grid stays high on the page. */}
+              {/* Only the file picker resets on folder changes; jobs live in the Studio manager. */}
               <UploadPanel
                 key={currentFolder?.id ?? "all"}
                 tripId={trip.id}
+                tripName={trip.title}
                 folderId={currentFolder?.id}
-                onUploaded={handleUploaded}
+                folderName={currentFolder?.name}
                 compact={(trip.photoCount ?? 0) > 0}
               />
             </div>

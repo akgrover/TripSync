@@ -1,14 +1,6 @@
 import { ApiError, putToS3, studioApi } from "./api";
 
-// Browser-decodable image types we accept. Others (HEIC, RAW, video, etc.) are skipped — the browser
-// can't read their dimensions and the API requires width/height.
-const EXT_TO_TYPE: Record<string, string> = {
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  png: "image/png",
-  webp: "image/webp",
-  gif: "image/gif",
-};
+import { contentTypeFor } from "./upload-capacity";
 
 const BATCH_MAX = 100; // server cap on totalCount per upload batch
 const MAX_HASH_BYTES = 40 * 1024 * 1024; // skip dedup hashing for very large files (bounds memory)
@@ -46,15 +38,9 @@ type UploadHandlers = {
   concurrency?: number;
   // Logical folder to file this upload under (omitted = ungrouped).
   folderId?: string;
+  // Used when the owning Studio session ends, not on page navigation.
+  signal?: AbortSignal;
 };
-
-function contentTypeFor(file: File): string {
-  if (file.type && file.type.startsWith("image/") && file.type !== "image/heic" && file.type !== "image/heif") {
-    return file.type;
-  }
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-  return EXT_TO_TYPE[ext] ?? "";
-}
 
 type ImageSize = { width: number; height: number };
 
@@ -255,13 +241,13 @@ type Classified = { file: File; contentType: string };
  *  - After the main pass, automatically retries the still-failing transient failures ONCE.
  *  - Returns the files still worth retrying, so the caller can offer a one-tap "Retry".
  *
- * Progress is reported via onProgress (throttled). Never throws — failures are classified into
- * retryable vs terminal and surfaced on the progress object.
+ * Progress is reported via onProgress (throttled). Upload failures are classified into retryable
+ * vs terminal. Session cancellation throws so the manager can immediately release its queue.
  */
 export async function runUpload(
   tripId: string,
   files: File[],
-  { onProgress, concurrency = 5, folderId }: UploadHandlers,
+  { onProgress, concurrency = 5, folderId, signal }: UploadHandlers,
 ): Promise<UploadResult> {
   const accepted: Classified[] = [];
   const progress: UploadProgress = {
@@ -304,19 +290,26 @@ export async function runUpload(
   // Online gate: if offline, park here (marking the run paused) until the network returns. Called
   // before every network attempt, so we never burn retries — or mass-fail photos — during a drop.
   const onlineGate = (): Promise<void> => {
+    signal?.throwIfAborted();
     if (typeof navigator === "undefined" || navigator.onLine) {
       return Promise.resolve();
     }
     progress.paused = true;
     emit(true);
-    return new Promise((resolve) => {
-      const handler = () => {
+    return new Promise((resolve, reject) => {
+      const cleanup = () => {
         window.removeEventListener("online", handler);
+        signal?.removeEventListener("abort", onAbort);
+      };
+      const handler = () => {
+        cleanup();
         progress.paused = false;
         emit(true);
         resolve();
       };
+      const onAbort = () => { cleanup(); reject(signal?.reason); };
       window.addEventListener("online", handler);
+      signal?.addEventListener("abort", onAbort, { once: true });
     });
   };
 
@@ -340,6 +333,7 @@ export async function runUpload(
   }
 
   async function uploadOne(item: Classified, batchId: string) {
+    signal?.throwIfAborted();
     const { file, contentType } = item;
     progress.inFlight += 1;
     emit();
@@ -360,7 +354,7 @@ export async function runUpload(
             contentType,
             contentHash,
             contentSize: file.size,
-          }),
+          }, signal),
         4,
         onlineGate,
       );
@@ -368,7 +362,7 @@ export async function runUpload(
         progress.duplicate += 1;
         return;
       }
-      await withRetry(() => putToS3(init.uploadUrl, file, contentType), 4, onlineGate);
+      await withRetry(() => putToS3(init.uploadUrl, file, contentType, signal), 4, onlineGate);
       await withRetry(
         () =>
           studioApi.completePhotoUpload(tripId, batchId, {
@@ -379,12 +373,13 @@ export async function runUpload(
             height: size.height,
             contentHash,
             contentSize: file.size,
-          }),
+          }, signal),
         4,
         onlineGate,
       );
       progress.done += 1;
     } catch (err) {
+      signal?.throwIfAborted();
       recordFailure(item, err instanceof Error ? err.message : "Upload failed", isTerminalError(err));
     } finally {
       progress.inFlight -= 1;
@@ -396,16 +391,18 @@ export async function runUpload(
   // failures land on the shared counters / buckets.
   async function runPass(pending: Classified[]): Promise<void> {
     for (let i = 0; i < pending.length; i += BATCH_MAX) {
+      signal?.throwIfAborted();
       const chunk = pending.slice(i, i + BATCH_MAX);
       let batchId: string;
       try {
         const res = await withRetry(
-          () => studioApi.createUploadBatch(tripId, chunk.length, folderId),
+          () => studioApi.createUploadBatch(tripId, chunk.length, folderId, signal),
           4,
           onlineGate,
         );
         batchId = res.batch.id;
       } catch (err) {
+        signal?.throwIfAborted();
         // Group-wide terminal conditions: trying the remaining batches is pointless. Stop, explain,
         // and keep the not-yet-attempted files as retryable so a tap can resume once it's fixed.
         if (
